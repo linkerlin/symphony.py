@@ -14,7 +14,10 @@ from pathlib import Path
 import click
 import structlog
 
+from symphony.cli_commands import doctor_command, init_command, validate_command
 from symphony.config.config import Config, ConfigError
+from symphony.dashboard.dashboard import Dashboard
+from symphony.llm.client import LLMClient
 from symphony.orchestrator.orchestrator import Orchestrator, OrchestratorError
 from symphony.prompts.builder import PromptBuilder
 from symphony.trackers.linear import LinearTracker
@@ -56,7 +59,19 @@ def setup_logging(logs_root: str | None = None, verbose: bool = False) -> None:
     )
 
 
-@click.command()
+@click.group()
+@click.version_option(version="0.1.0", prog_name="symphony")
+def cli():
+    """Symphony - Agent Orchestration System (LLM Provider Agnostic).
+    
+    Quick start: symphony init
+    
+    Run: symphony run WORKFLOW.md
+    """
+    pass
+
+
+@cli.command(name="run")
 @click.argument(
     "workflow_file",
     type=click.Path(exists=True, path_type=Path),
@@ -77,20 +92,46 @@ def setup_logging(logs_root: str | None = None, verbose: bool = False) -> None:
     is_flag=True,
     help="Enable verbose logging",
 )
-def main(
+@click.option(
+    "--env-file",
+    type=click.Path(path_type=Path),
+    help="Path to .env file (default: .env in workflow directory)",
+)
+@click.option(
+    "--dashboard/--no-dashboard",
+    default=False,
+    help="Enable terminal dashboard display",
+)
+def run_command(
     workflow_file: Path,
     logs_root: Path | None,
     port: int | None,
     verbose: bool,
+    env_file: Path | None,
+    dashboard: bool,
 ) -> None:
-    """Symphony - Agent Orchestration System.
+    """Run Symphony orchestrator.
 
     WORKFLOW_FILE is the path to your WORKFLOW.md configuration file.
     Defaults to ./WORKFLOW.md if not specified.
+
+    Configuration priority:
+    1. WORKFLOW.md settings
+    2. Environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+    3. .env file
+    4. Default values
+
+    Supported LLM providers: openai, anthropic, deepseek, gemini, azure
     """
     setup_logging(logs_root=str(logs_root) if logs_root else None, verbose=verbose)
 
     logger.info("Starting Symphony", workflow_file=str(workflow_file))
+
+    # Load .env file if specified or load defaults
+    if env_file:
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+        logger.debug(f"Loaded env file: {env_file}")
 
     # Load configuration
     try:
@@ -105,6 +146,14 @@ def main(
     # Override port if specified
     if port is not None:
         settings.server.port = port
+
+    # Log LLM configuration (without API key)
+    logger.info(
+        "LLM Configuration",
+        provider=settings.llm.provider,
+        model=settings.llm.model,
+        base_url=settings.llm.base_url,
+    )
 
     # Create tracker
     if settings.tracker.kind == "linear":
@@ -142,13 +191,21 @@ def main(
     # Create prompt builder
     prompt_builder = PromptBuilder.from_workflow(workflow_file)
 
+    # Create LLM client
+    try:
+        llm_config = config.get_llm_config()
+        llm_client = LLMClient.from_config(llm_config)
+    except Exception as e:
+        logger.error(f"Failed to create LLM client: {e}")
+        sys.exit(1)
+
     # Create orchestrator
     orchestrator = Orchestrator(
         config=config,
         tracker=tracker,
         workspace_manager=workspace_manager,
         prompt_builder=prompt_builder,
-        agent_factory=lambda: None,  # TODO: Implement agent factory
+        llm_client=llm_client,
     )
 
     # Set up signal handlers
@@ -161,10 +218,21 @@ def main(
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
 
-    # Run orchestrator
+    # Run orchestrator (with optional dashboard)
     try:
-        loop.run_until_complete(orchestrator.start())
-        loop.run_forever()
+        if dashboard:
+            # Run with dashboard
+            dashboard_ui = Dashboard(
+                orchestrator=orchestrator,
+                config=config,
+                refresh_interval=1.0,
+            )
+            loop.run_until_complete(orchestrator.start())
+            loop.run_until_complete(dashboard_ui.run_in_background())
+        else:
+            # Run without dashboard
+            loop.run_until_complete(orchestrator.start())
+            loop.run_forever()
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
     except OrchestratorError as e:
@@ -177,5 +245,15 @@ def main(
     logger.info("Symphony stopped")
 
 
+# Add subcommands
+cli.add_command(init_command)
+cli.add_command(validate_command)
+cli.add_command(doctor_command)
+cli.add_command(run_command)
+
+# Backwards compatibility: main = run_command
+main = cli
+
+
 if __name__ == "__main__":
-    main()
+    cli()

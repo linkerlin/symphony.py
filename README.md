@@ -1,26 +1,55 @@
-# Symphony (Python Edition)
+# Symphony (Python Edition) 🎼
 
 Symphony 是一个智能 Agent 编排系统，将项目工作转化为独立的、自主的执行任务，让团队能够专注于管理工作而非监督编码 Agent。
 
-这是 Symphony 的 Python 3.12 实现版本，使用 AgentScope 作为 Agent 基础库。
+这是 Symphony 的 Python 3.12 实现版本，支持多种 LLM 供应商（OpenAI、Anthropic、DeepSeek、Gemini、Azure 等）。
 
 ## 特性
 
-- 自动轮询 Linear 获取候选任务
-- 为每个 Issue 创建独立的工作空间
-- 智能并发控制和状态管理
-- 自动重试和指数退避
-- 实时的终端状态仪表板
-- 可选的 HTTP API 服务器
-- 支持远程 SSH 工作节点
+- **🤖 LLM 供应商无关**: 支持 OpenAI、Anthropic、DeepSeek、Gemini、Azure OpenAI
+- **📋 Linear 集成**: 自动轮询 Linear 获取候选任务
+- **📁 独立工作空间**: 为每个 Issue 创建隔离的工作环境
+- **⚡ 智能并发控制**: 可配置的最大并发 Agent 数
+- **🔄 自动重试机制**: 指数退避和状态恢复
+- **🔧 交互式配置向导**: 一键初始化项目
+- **📊 实时监控仪表板**: 终端 UI 显示运行状态
+- **🔍 环境诊断工具**: 一键检查配置和连接
+- **🐳 Docker 支持**: 容器化部署，快速启动
+
+## 快速开始
+
+### 一键安装
+
+```bash
+curl -sSL https://raw.githubusercontent.com/openai/symphony/main/symphony.py/install.sh | bash
+```
+
+或使用 pip:
+
+```bash
+pip install symphony
+```
+
+### 一分钟配置
+
+```bash
+# 1. 初始化配置（交互式向导）
+symphony init
+
+# 2. 检查环境
+symphony doctor
+
+# 3. 启动（带实时仪表板）
+symphony run --dashboard
+```
 
 ## 安装
 
 ### 要求
 
-- Python 3.12 或更高版本
+- Python 3.12+
 - Linear API 密钥
-- Codex CLI (或其他兼容的 coding agent)
+- LLM API 密钥（OpenAI、Anthropic 等）
 
 ### 从源码安装
 
@@ -30,168 +59,192 @@ cd symphony/symphony.py
 pip install -e .
 ```
 
-### 安装开发依赖
+### Docker 部署
 
 ```bash
-pip install -e ".[dev]"
+# 克隆仓库
+git clone https://github.com/openai/symphony
+cd symphony/symphony.py
+
+# 启动（使用 Docker Compose）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f symphony
 ```
 
-## 快速开始
+## CLI 命令
 
-### 1. 创建工作流配置
+| 命令 | 描述 |
+|------|------|
+| `symphony init` | 交互式配置向导 |
+| `symphony run [WORKFLOW.md]` | 启动编排器 |
+| `symphony validate [WORKFLOW.md]` | 验证配置 |
+| `symphony doctor` | 环境诊断 |
+| `symphony --version` | 显示版本 |
 
-创建 `WORKFLOW.md` 文件：
+### 运行选项
+
+```bash
+# 基本运行
+symphony run WORKFLOW.md
+
+# 带实时仪表板
+symphony run --dashboard
+
+# 详细日志
+symphony run --verbose
+
+# 指定环境文件
+symphony run --env-file .env.local
+
+# 指定端口
+symphony run --port 8080
+```
+
+## 配置
+
+### 环境变量
+
+#### LLM 供应商
+
+| 变量 | 描述 | 必需 |
+|------|------|------|
+| `OPENAI_API_KEY` | OpenAI API 密钥 | 使用 OpenAI 时 |
+| `OPENAI_BASE_URL` | 自定义 API 地址 | 否 |
+| `OPENAI_MODEL` | 模型名称 (gpt-4, gpt-4o) | 否 |
+| `ANTHROPIC_API_KEY` | Anthropic API 密钥 | 使用 Anthropic 时 |
+| `ANTHROPIC_MODEL` | 模型名称 | 否 |
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | 使用 DeepSeek 时 |
+| `GEMINI_API_KEY` | Google Gemini API 密钥 | 使用 Gemini 时 |
+
+#### Linear 集成
+
+| 变量 | 描述 | 必需 |
+|------|------|------|
+| `LINEAR_API_KEY` | Linear API 密钥 | 是 |
+| `LINEAR_PROJECT_SLUG` | Linear 团队/项目标识 | 是 |
+
+### WORKFLOW.md 配置
 
 ```yaml
 ---
-tracker:
-  kind: linear
-  project_slug: "your-project-slug"
-  api_key: $LINEAR_API_KEY
+symphony:
+  version: "1.0"
+  
+  settings:
+    llm:
+      provider: openai
+      model: gpt-4
+      temperature: 0.7
+      max_tokens: 4096
+    
+    agent:
+      max_turns: 20
+      include_patterns:
+        - "**/*.py"
+        - "**/*.md"
+      exclude_patterns:
+        - "**/.git/**"
+        - "**/__pycache__/**"
+    
+    tracker:
+      kind: linear
+      project_slug: my-team
+      active_states:
+        - "Todo"
+        - "In Progress"
+      terminal_states:
+        - "Done"
+        - "Canceled"
+    
+    workspace:
+      root: ./workspaces
+      max_concurrent_agents: 3
+    
+    hooks:
+      timeout_ms: 30000
+      after_create: |
+        echo "Workspace created: $SYMPHONY_WORKSPACE"
+      before_run: |
+        echo "Starting: $SYMPHONY_ISSUE_ID"
+      after_run: |
+        echo "Completed: $SYMPHONY_ISSUE_ID"
 
-polling:
-  interval_ms: 30000
-
-workspace:
-  root: ~/symphony-workspaces
-
-hooks:
-  after_create: |
-    git clone git@github.com:your-org/your-repo.git .
-
-agent:
-  max_concurrent_agents: 10
-  max_turns: 20
-
-codex:
-  command: codex app-server
-  approval_policy: never
+  prompt: |
+    You are working on Linear issue {{identifier}}: {{title}}
+    
+    Description:
+    {{description}}
+    
+    Your task:
+    1. Understand the requirements
+    2. Explore the codebase
+    3. Implement the solution
+    4. Test your changes
+    5. Summarize what was done
 ---
-
-You are working on issue {{ issue.identifier }}: {{ issue.title }}
-
-Description:
-{{ issue.description }}
-
-Please implement the necessary changes.
 ```
 
-### 2. 设置环境变量
+## Agent 工具
 
-```bash
-export LINEAR_API_KEY="your-linear-api-key"
-```
+Agent 可以使用的工具：
 
-### 3. 运行 Symphony
-
-```bash
-python -m symphony WORKFLOW.md
-```
-
-## 配置说明
-
-### Tracker 配置
-
-```yaml
-tracker:
-  kind: linear              # Tracker 类型: linear 或 memory
-  endpoint: https://api.linear.app/graphql
-  api_key: $LINEAR_API_KEY  # API 密钥或环境变量引用
-  project_slug: "..."       # Linear 项目 slug
-  assignee: "me"           # 可选: 只处理分配给当前用户的 Issue
-  active_states:           # 视为活跃的状态
-    - Todo
-    - In Progress
-  terminal_states:         # 视为终态的状态
-    - Closed
-    - Done
-```
-
-### Agent 配置
-
-```yaml
-agent:
-  max_concurrent_agents: 10      # 最大并发 Agent 数
-  max_turns: 20                  # 每个会话最大轮数
-  max_retry_backoff_ms: 300000   # 最大重试退避时间 (5分钟)
-```
-
-### Codex 配置
-
-```yaml
-codex:
-  command: codex app-server      # 启动 coding agent 的命令
-  approval_policy: never         # 审批策略
-  thread_sandbox: workspace-write # 沙盒模式
-  turn_timeout_ms: 3600000       # 单轮超时 (1小时)
-  stall_timeout_ms: 300000       # 停滞检测超时 (5分钟)
-```
+| 工具 | 描述 |
+|------|------|
+| `read_file(path)` | 读取工作区内文件 |
+| `write_file(path, content)` | 写入文件 |
+| `execute_command(cmd, timeout)` | 执行 shell 命令 |
+| `linear_graphql(query, variables)` | Linear GraphQL 查询 |
+| `add_comment(issue_id, body)` | 添加评论到 Issue |
+| `get_issue(issue_id)` | 获取 Issue 详情 |
 
 ## 项目结构
 
 ```
 symphony.py/
-├── src/symphony/
-│   ├── config/          # 配置管理
-│   ├── models/          # 数据模型
-│   ├── workflow/        # 工作流解析
-│   ├── trackers/        # Issue Tracker 适配器
-│   ├── workspace/       # 工作空间管理
-│   ├── agents/          # Agent 实现
-│   ├── orchestrator/    # 核心调度器
-│   ├── dashboard/       # 状态仪表板
-│   ├── web/             # HTTP API
-│   └── utils/           # 工具函数
-├── tests/               # 测试
-└── docs/                # 文档
-```
-
-## 架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Orchestrator                            │
-│         (调度器: 轮询、分派、重试、状态调和)                    │
-└──────────────────┬──────────────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-┌───────────┐ ┌────────┐ ┌──────────┐
-│  Linear   │ │ Agent  │ │ Workspace│
-│  Tracker  │ │ Runner │ │ Manager  │
-└───────────┘ └───┬────┘ └──────────┘
-                  │
-                  ▼
-         ┌────────────────┐
-         │  AgentScope    │
-         │  ReActAgent    │
-         └────────────────┘
+├── src/symphony/           # 源代码
+│   ├── agents/             # Agent 实现
+│   ├── cli_commands/       # CLI 命令
+│   ├── config/             # 配置管理
+│   ├── dashboard/          # 终端仪表板
+│   ├── llm/                # LLM 客户端
+│   ├── orchestrator/       # 编排器
+│   ├── trackers/           # 任务追踪器
+│   └── workspace/          # 工作空间管理
+├── examples/               # 示例配置
+├── Dockerfile              # Docker 构建
+├── docker-compose.yml      # Docker Compose 配置
+├── install.sh              # 安装脚本
+├── Makefile                # 开发命令
+└── QUICKSTART.md           # 快速入门指南
 ```
 
 ## 开发
 
-### 运行测试
-
 ```bash
-pytest
+# 安装开发依赖
+make install-dev
+
+# 运行测试
+make test
+
+# 代码检查
+make lint
+
+# 格式化代码
+make format
+
+# Docker 构建
+make docker-build
 ```
 
-### 代码检查
+## 文档
 
-```bash
-ruff check src
-ruff format src
-mypy src
-```
-
-## 与原 Elixir 版本的差异
-
-1. **异步模型**: 使用 Python asyncio 替代 Elixir OTP
-2. **Agent 框架**: 使用 AgentScope 替代直接与 Codex app-server 通信
-3. **类型系统**: 使用 Pydantic 进行运行时类型验证
-4. **配置**: 保持相同的 WORKFLOW.md 格式
+- [快速入门指南](QUICKSTART.md)
+- [架构文档](ARCHITECTURE.md)
+- [示例配置](examples/)
 
 ## 许可证
 
-Apache License 2.0
+Apache 2.0

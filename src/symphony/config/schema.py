@@ -18,6 +18,121 @@ def default_workspace_root() -> str:
     return str(Path(tempfile.gettempdir()) / "symphony_workspaces")
 
 
+def get_env_or_default(env_var: str, default: str | None = None) -> str | None:
+    """Get value from environment variable or return default."""
+    return os.environ.get(env_var, default)
+
+
+class LLMConfig(BaseModel):
+    """Configuration for LLM provider.
+    
+    Supports multiple providers: openai, anthropic, deepseek, gemini, etc.
+    Configuration can come from environment variables or WORKFLOW.md.
+    
+    Priority for API configuration:
+    1. Explicit config in WORKFLOW.md
+    2. OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL (if provider is openai)
+    3. Provider-specific env vars (ANTHROPIC_API_KEY, etc.)
+    4. Default values
+    """
+
+    provider: Literal["openai", "anthropic", "deepseek", "gemini", "azure"] = Field(
+        default="openai",
+        description="LLM provider name",
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key for the LLM provider",
+    )
+    base_url: str | None = Field(
+        default=None,
+        description="Base URL for the API (for custom endpoints)",
+    )
+    model: str = Field(
+        default="gpt-4",
+        description="Model name to use",
+    )
+    temperature: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature",
+    )
+    max_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        description="Maximum tokens per response",
+    )
+    timeout: int = Field(
+        default=120,
+        ge=1,
+        description="Request timeout in seconds",
+    )
+    max_retries: int = Field(
+        default=3,
+        ge=0,
+        description="Maximum retries for failed requests",
+    )
+
+    @model_validator(mode="after")
+    def resolve_from_env(self) -> "LLMConfig":
+        """Resolve API key, base_url, and model from environment variables.
+        
+        Priority:
+        1. Explicitly set values (not None)
+        2. OPENAI_* environment variables (if provider is openai)
+        3. Provider-specific environment variables
+        """
+        # If provider is openai and values not set, try OPENAI_* env vars
+        if self.provider == "openai":
+            if self.api_key is None:
+                self.api_key = get_env_or_default("OPENAI_API_KEY")
+            if self.base_url is None:
+                self.base_url = get_env_or_default("OPENAI_BASE_URL")
+            if self.model == "gpt-4":  # Only override if using default
+                env_model = get_env_or_default("OPENAI_MODEL")
+                if env_model:
+                    self.model = env_model
+        
+        # Provider-specific env vars as fallback
+        provider_env_map = {
+            "anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"),
+            "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"),
+            "gemini": ("GEMINI_API_KEY", None, "GEMINI_MODEL"),
+            "azure": ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_MODEL"),
+        }
+        
+        if self.provider in provider_env_map:
+            key_var, url_var, model_var = provider_env_map[self.provider]
+            
+            if self.api_key is None:
+                self.api_key = get_env_or_default(key_var)
+            if self.base_url is None and url_var:
+                self.base_url = get_env_or_default(url_var)
+            if model_var:
+                env_model = get_env_or_default(model_var)
+                if env_model and self.model == "gpt-4":
+                    self.model = env_model
+        
+        return self
+
+    def get_client_config(self) -> dict[str, Any]:
+        """Get configuration dict for creating LLM client."""
+        config = {
+            "provider": self.provider,
+            "api_key": self.api_key,
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_retries": self.max_retries,
+            "timeout": self.timeout,
+        }
+        if self.base_url:
+            config["base_url"] = self.base_url
+        if self.max_tokens:
+            config["max_tokens"] = self.max_tokens
+        return config
+
+
 class TrackerConfig(BaseModel):
     """Configuration for issue tracker (Linear)."""
 
@@ -145,55 +260,15 @@ class AgentConfig(BaseModel):
         default_factory=dict,
         description="Per-state concurrency limits",
     )
-
-
-class CodexConfig(BaseModel):
-    """Configuration for Codex/coding agent integration."""
-
-    command: str = Field(
-        default="codex app-server",
-        description="Command to start coding agent app-server",
+    turn_timeout_seconds: int = Field(
+        default=3600,
+        ge=60,
+        description="Maximum seconds per agent turn",
     )
-    approval_policy: str | dict[str, Any] = Field(
-        default="never",
-        description="Approval policy: never, on-failure, on-request, or dict",
-    )
-    thread_sandbox: str = Field(
-        default="workspace-write",
-        description="Sandbox mode: read-only, workspace-write, danger-full-access",
-    )
-    turn_sandbox_policy: dict[str, Any] | None = Field(
-        default=None,
-        description="Per-turn sandbox policy configuration",
-    )
-    turn_timeout_ms: int = Field(
-        default=3600000,
-        ge=1000,
-        description="Turn timeout in milliseconds",
-    )
-    read_timeout_ms: int = Field(
-        default=5000,
-        ge=1000,
-        description="Read timeout for app-server responses",
-    )
-    stall_timeout_ms: int = Field(
-        default=300000,
+    stall_timeout_seconds: int = Field(
+        default=300,
         ge=0,
-        description="Stall detection timeout (0 to disable)",
-    )
-
-
-class WorkerConfig(BaseModel):
-    """Configuration for remote workers via SSH."""
-
-    ssh_hosts: list[str] = Field(
-        default_factory=list,
-        description="List of SSH host strings for remote execution",
-    )
-    max_concurrent_agents_per_host: int | None = Field(
-        default=None,
-        ge=1,
-        description="Maximum agents per SSH host",
+        description="Stall detection timeout in seconds (0 to disable)",
     )
 
 
@@ -229,21 +304,23 @@ class SymphonyConfig(BaseModel):
     """Root configuration for Symphony.
 
     This is the main configuration class that holds all settings
-    loaded from WORKFLOW.md or environment variables.
+    loaded from WORKFLOW.md, environment variables, or .env file.
     """
 
+    # LLM configuration (replaces old codex config)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    
+    # Other configurations
     tracker: TrackerConfig = Field(default_factory=TrackerConfig)
     polling: PollingConfig = Field(default_factory=PollingConfig)
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
-    worker: WorkerConfig = Field(default_factory=WorkerConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
-    codex: CodexConfig = Field(default_factory=CodexConfig)
     hooks: HooksConfig = Field(default_factory=HooksConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
 
     @model_validator(mode="after")
-    def validate_tracker_config(self) -> SymphonyConfig:
+    def validate_tracker_config(self) -> "SymphonyConfig":
         """Validate tracker-specific requirements."""
         if self.tracker.kind == "linear":
             if not self.tracker.api_key:
@@ -278,3 +355,7 @@ class SymphonyConfig(BaseModel):
         """Check if a state is considered terminal."""
         normalized = state_name.lower()
         return any(s.lower() == normalized for s in self.tracker.terminal_states)
+
+    def get_llm_client_config(self) -> dict[str, Any]:
+        """Get LLM client configuration."""
+        return self.llm.get_client_config()

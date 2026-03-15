@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from symphony.models.issue import Issue
-from symphony.models.session import CodexTotals, SessionState
+from symphony.models.session import LLMTotals, SessionState
 
 
 @dataclass
@@ -90,9 +90,9 @@ class OrchestratorState:
     retry_attempts: dict[str, RetryEntry] = field(default_factory=dict)
     completed: set[str] = field(default_factory=set)
 
-    # Metrics
-    codex_totals: CodexTotals = field(default_factory=CodexTotals)
-    codex_rate_limits: dict[str, Any] | None = None
+    # Metrics (LLM provider agnostic)
+    llm_totals: LLMTotals = field(default_factory=LLMTotals)
+    rate_limits: dict[str, Any] | None = None
 
     # Internal
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -144,6 +144,6 @@ class OrchestratorState:
             "completed_count": len(self.completed),
             "running": [entry.to_dict() for entry in self.running.values()],
             "retrying": [entry.to_dict() for entry in self.retry_attempts.values()],
-            "codex_totals": self.codex_totals.to_dict(),
-            "codex_rate_limits": self.codex_rate_limits,
+            "llm_totals": self.llm_totals.to_dict(),
+            "rate_limits": self.rate_limits,
         }

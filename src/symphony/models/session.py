@@ -27,22 +27,42 @@ class SessionStatus(Enum):
 
 
 @dataclass
-class CodexTotals:
-    """Aggregate token and runtime metrics.
+class LLMUsage:
+    """LLM token usage metrics."""
 
-    Tracks cumulative metrics across all completed and running sessions.
-    """
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
 
-    input_tokens: int = 0
-    output_tokens: int = 0
+    def add(self, usage: dict[str, int]) -> None:
+        """Add usage from response."""
+        self.prompt_tokens += usage.get("prompt_tokens", 0)
+        self.completion_tokens += usage.get("completion_tokens", 0)
+        self.total_tokens += usage.get("total_tokens", 0)
+
+    def to_dict(self) -> dict[str, int]:
+        """Convert to dictionary."""
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+        }
+
+
+@dataclass
+class LLMTotals:
+    """Aggregate LLM usage and runtime metrics."""
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
     total_tokens: int = 0
     seconds_running: float = 0.0
 
-    def add_tokens(self, input_tokens: int, output_tokens: int) -> None:
+    def add_usage(self, prompt: int, completion: int) -> None:
         """Add token counts to totals."""
-        self.input_tokens += input_tokens
-        self.output_tokens += output_tokens
-        self.total_tokens += input_tokens + output_tokens
+        self.prompt_tokens += prompt
+        self.completion_tokens += completion
+        self.total_tokens += prompt + completion
 
     def add_runtime(self, seconds: float) -> None:
         """Add runtime seconds to totals."""
@@ -51,8 +71,8 @@ class CodexTotals:
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
             "total_tokens": self.total_tokens,
             "seconds_running": self.seconds_running,
         }
@@ -79,32 +99,28 @@ class SessionState:
     # Runtime info
     workspace_path: str | None = None
     worker_host: str | None = None
-    codex_app_server_pid: str | None = None
+    llm_model: str | None = None
 
     # Timestamps
     started_at: datetime = field(default_factory=datetime.utcnow)
     last_activity_at: datetime = field(default_factory=datetime.utcnow)
     ended_at: datetime | None = None
 
-    # Token tracking
-    input_tokens: int = 0
-    output_tokens: int = 0
-    total_tokens: int = 0
+    # Token tracking (LLM provider agnostic)
+    llm_usage: LLMUsage = field(default_factory=LLMUsage)
+    turn_count: int = 0
 
     # Event tracking
     last_event: str | None = None
     last_message: str | None = None
-    turn_count: int = 0
 
     def update_activity(self) -> None:
         """Update last activity timestamp."""
         self.last_activity_at = datetime.utcnow()
 
-    def add_tokens(self, input_tokens: int, output_tokens: int) -> None:
-        """Add token counts to session."""
-        self.input_tokens += input_tokens
-        self.output_tokens += output_tokens
-        self.total_tokens += input_tokens + output_tokens
+    def add_usage(self, usage: dict[str, int]) -> None:
+        """Add LLM usage to session."""
+        self.llm_usage.add(usage)
         self.update_activity()
 
     def increment_turn(self) -> None:
@@ -151,15 +167,13 @@ class SessionState:
             "error": self.error,
             "workspace_path": self.workspace_path,
             "worker_host": self.worker_host,
-            "codex_app_server_pid": self.codex_app_server_pid,
+            "llm_model": self.llm_model,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "last_activity_at": self.last_activity_at.isoformat() if self.last_activity_at else None,
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "total_tokens": self.total_tokens,
+            "llm_usage": self.llm_usage.to_dict(),
+            "turn_count": self.turn_count,
             "last_event": self.last_event,
             "last_message": self.last_message,
-            "turn_count": self.turn_count,
             "runtime_seconds": self.get_runtime_seconds(),
         }

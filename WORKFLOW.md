@@ -1,4 +1,21 @@
 ---
+# Symphony 工作流配置
+# 支持从 .env 文件或环境变量读取配置
+
+# LLM 配置
+# 优先从环境变量读取: OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
+# 也支持: ANTHROPIC_*, DEEPSEEK_*, GEMINI_*, AZURE_*
+llm:
+  provider: openai          # 供应商: openai, anthropic, deepseek, gemini, azure
+  # api_key: (从 OPENAI_API_KEY 环境变量读取)
+  # base_url: (从 OPENAI_BASE_URL 环境变量读取)
+  # model: (从 OPENAI_MODEL 环境变量读取，默认: gpt-4)
+  temperature: 0.7
+  max_tokens: 4096
+  timeout: 120
+  max_retries: 3
+
+# Linear 配置
 tracker:
   kind: linear
   project_slug: "your-project-slug"
@@ -13,15 +30,18 @@ tracker:
     - Duplicate
     - Done
 
+# 轮询配置
 polling:
   interval_ms: 30000
 
+# 工作空间配置
 workspace:
   root: ~/symphony-workspaces
 
+# 生命周期钩子
 hooks:
   after_create: |
-    # Clone your repository here
+    # 在此处初始化仓库
     # git clone git@github.com:your-org/your-repo.git .
     echo "Workspace created"
   before_run: |
@@ -30,18 +50,18 @@ hooks:
     echo "Agent run completed"
   timeout_ms: 60000
 
+# Agent 配置
 agent:
   max_concurrent_agents: 10
   max_turns: 20
   max_retry_backoff_ms: 300000
+  turn_timeout_seconds: 3600
+  stall_timeout_seconds: 300
 
-codex:
-  command: codex app-server
-  approval_policy: never
-  thread_sandbox: workspace-write
-  turn_timeout_ms: 3600000
-  read_timeout_ms: 5000
-  stall_timeout_ms: 300000
+# HTTP 服务器配置 (可选)
+server:
+  # port: 8080
+  host: 127.0.0.1
 ---
 
 You are working on Linear issue `{{ issue.identifier }}`

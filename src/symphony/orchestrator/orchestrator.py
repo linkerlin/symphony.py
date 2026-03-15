@@ -1,6 +1,7 @@
 """Core orchestrator for Symphony.
 
 Manages polling, dispatch, retries, and reconciliation of agent runs.
+Works with any LLM provider (OpenAI, Anthropic, DeepSeek, Gemini, etc.)
 """
 
 from __future__ import annotations
@@ -10,7 +11,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
+from symphony.agents.agent import AgentError, SymphonyAgent
 from symphony.config.config import Config, ConfigError
+from symphony.llm.client import LLMClient
 from symphony.models.issue import Issue
 from symphony.models.session import SessionState, SessionStatus
 from symphony.orchestrator.state import OrchestratorState, RetryEntry, RunningEntry
@@ -36,6 +39,8 @@ class Orchestrator:
     - Handle retries with exponential backoff
     - Reconcile issue states
     - Track metrics and expose state
+
+    Works with any LLM provider configured in settings.
     """
 
     # Retry backoff constants
@@ -48,7 +53,7 @@ class Orchestrator:
         tracker: BaseTracker,
         workspace_manager: WorkspaceManager,
         prompt_builder: PromptBuilder,
-        agent_factory: Callable[[], Any],
+        llm_client: LLMClient | None = None,
     ) -> None:
         """Initialize orchestrator.
 
@@ -57,13 +62,13 @@ class Orchestrator:
             tracker: Issue tracker instance
             workspace_manager: Workspace manager instance
             prompt_builder: Prompt builder instance
-            agent_factory: Factory function to create agent instances
+            llm_client: Optional LLM client (created from config if not provided)
         """
         self.config = config
         self.tracker = tracker
         self.workspace_manager = workspace_manager
         self.prompt_builder = prompt_builder
-        self.agent_factory = agent_factory
+        self.llm_client = llm_client
 
         self.state = OrchestratorState()
         self._running = False
@@ -98,6 +103,15 @@ class Orchestrator:
             self.config.validate()
         except ConfigError as e:
             raise OrchestratorError(f"Invalid configuration: {e}") from e
+
+        # Initialize LLM client if not provided
+        if self.llm_client is None:
+            llm_config = self.config.get_llm_config()
+            self.llm_client = LLMClient.from_config(llm_config)
+            logger.info(
+                f"Initialized LLM client: provider={llm_config.get('provider')}, "
+                f"model={llm_config.get('model')}"
+            )
 
         self._running = True
 
@@ -136,6 +150,10 @@ class Orchestrator:
                 *[entry.task for entry in self.state.running.values()],
                 return_exceptions=True,
             )
+
+        # Close LLM client
+        if self.llm_client:
+            await self.llm_client.close()
 
         logger.info("Orchestrator stopped")
 
@@ -347,6 +365,7 @@ class Orchestrator:
         session_state = SessionState(
             issue_id=issue.id,
             issue_identifier=issue.identifier,
+            llm_model=self.config.settings.llm.model,
         )
         self.state.running[issue.id] = RunningEntry(
             task=task,
@@ -375,14 +394,74 @@ class Orchestrator:
         """
         logger.info(f"Running agent for {issue.get_context_string()}")
 
+        # Create workspace
+        workspace_path, created = await self.workspace_manager.create_for_issue(issue)
+        logger.debug(f"Workspace: {workspace_path}, created: {created}")
+
+        # Run before_run hook
+        await self.workspace_manager.run_before_run_hook(workspace_path, issue)
+
+        # Create agent with tools
+        from symphony.agents.tools import (
+            add_comment,
+            execute_command,
+            get_issue,
+            linear_graphql,
+            read_file,
+            update_issue_state,
+            write_file,
+        )
+
+        tools = {
+            "read_file": read_file,
+            "write_file": write_file,
+            "execute_command": execute_command,
+            "linear_graphql": linear_graphql,
+            "add_comment": add_comment,
+            "update_issue_state": update_issue_state,
+            "get_issue": get_issue,
+        }
+
+        agent = SymphonyAgent(
+            llm_client=self.llm_client,
+            prompt_builder=self.prompt_builder,
+            tools=tools,
+        )
+
         try:
-            # TODO: Implement actual agent execution
-            # This is a placeholder that simulates agent execution
-            await asyncio.sleep(10)
+            # Run agent
+            settings = self.config.settings
+            result = await agent.run(
+                issue=issue,
+                workspace_path=workspace_path,
+                max_turns=settings.agent.max_turns,
+                attempt=attempt,
+            )
+
+            # Update session state with results
+            entry = self.state.running.get(issue.id)
+            if entry:
+                entry.session_state.turn_count = result.get("turns", 0)
+                tokens = result.get("total_tokens", {})
+                entry.session_state.add_usage(tokens)
+
+            logger.info(
+                f"Agent completed for {issue.identifier}: "
+                f"{result.get('turns', 0)} turns, "
+                f"tokens: {tokens}"
+            )
+
+        except AgentError as e:
+            logger.error(f"Agent failed for {issue.identifier}: {e}")
+            raise
 
         except asyncio.CancelledError:
             logger.info(f"Agent cancelled for {issue.identifier}")
             raise
+
+        finally:
+            # Run after_run hook (best effort)
+            await self.workspace_manager.run_after_run_hook(workspace_path, issue)
 
     async def _handle_agent_completion(
         self, issue_id: str, task: asyncio.Task
@@ -399,7 +478,7 @@ class Orchestrator:
 
         # Update metrics
         runtime = entry.session_state.get_runtime_seconds()
-        self.state.codex_totals.add_runtime(runtime)
+        self.state.llm_totals.add_runtime(runtime)
 
         # Check result
         exception = task.exception()

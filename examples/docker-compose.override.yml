@@ -1,0 +1,46 @@
+# Docker Compose Override Example
+# Copy to docker-compose.override.yml and customize
+
+version: "3.8"
+
+services:
+  symphony:
+    # Mount your source code for agent to work on
+    volumes:
+      - ./WORKFLOW.md:/app/WORKFLOW.md:ro
+      - ./workspaces:/app/workspaces
+      - ./logs:/app/logs
+      # Mount your project for agent to edit
+      - ../my-project:/src:rw
+    
+    environment:
+      # Override specific settings
+      - SYMPHONY_MAX_CONCURRENT=5
+      - SYMPHONY_LOG_LEVEL=DEBUG
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # Add monitoring (optional)
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    profiles:
+      - monitoring

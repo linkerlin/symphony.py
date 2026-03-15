@@ -15,6 +15,69 @@ class PathSafetyError(Exception):
     pass
 
 
+def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path:
+    """Resolve a file path relative to workspace with safety checks.
+    
+    Args:
+        file_path: Path to resolve (relative or absolute)
+        workspace: Workspace root directory (optional)
+        
+    Returns:
+        Resolved Path object
+        
+    Raises:
+        PathSafetyError: If path escapes workspace or contains traversal
+    """
+    # Handle absolute paths
+    path = Path(file_path)
+    
+    if workspace is None:
+        # No workspace specified, use current directory
+        return path.resolve()
+    
+    workspace_path = Path(workspace).expanduser().resolve()
+    
+    # Check for path traversal attempts
+    if PathSafety.check_path_traversal(file_path):
+        raise PathSafetyError(
+            f"Path traversal detected: {file_path}"
+        )
+    
+    # Resolve relative to workspace
+    if path.is_absolute():
+        # If absolute, check it's within workspace
+        try:
+            path.relative_to(workspace_path)
+            return path
+        except ValueError:
+            raise PathSafetyError(
+                f"Absolute path {file_path} is outside workspace {workspace_path}"
+            )
+    else:
+        # Relative path - join with workspace
+        full_path = (workspace_path / path).resolve()
+        
+        # Verify resolved path is still within workspace
+        try:
+            full_path.relative_to(workspace_path)
+        except ValueError:
+            raise PathSafetyError(
+                f"Resolved path {full_path} escapes workspace {workspace_path}"
+            )
+        
+        # Check for symlink escapes
+        if full_path.exists() and full_path.is_symlink():
+            real_path = full_path.resolve()
+            try:
+                real_path.relative_to(workspace_path)
+            except ValueError:
+                raise PathSafetyError(
+                    f"Symlink {full_path} points outside workspace"
+                )
+        
+        return full_path
+
+
 class PathSafety:
     """Validates workspace path safety.
 
