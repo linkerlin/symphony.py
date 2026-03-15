@@ -1,16 +1,16 @@
-# Symphony Quick Start Guide
+# Symphony 快速入门指南
 
-Get Symphony up and running in minutes.
+在几分钟内启动并运行 Symphony。
 
-## Installation
+## 安装
 
-### Option 1: pip (Recommended)
+### 方式 1: pip（推荐）
 
 ```bash
 pip install symphony
 ```
 
-### Option 2: From Source
+### 方式 2: 从源码安装
 
 ```bash
 git clone https://github.com/openai/symphony.git
@@ -18,60 +18,60 @@ cd symphony/symphony.py
 pip install -e .
 ```
 
-### Option 3: Docker
+### 方式 3: Docker
 
 ```bash
-# Clone repository
+# 克隆仓库
 git clone https://github.com/openai/symphony.git
 cd symphony/symphony.py
 
-# Run with Docker Compose
+# 使用 Docker Compose 运行
 docker-compose up -d
 ```
 
-## One-Minute Setup
+## 一分钟设置
 
-### 1. Initialize Configuration
+### 1. 初始化配置
 
 ```bash
 symphony init
 ```
 
-This interactive wizard will:
-- Ask for your preferred LLM provider (OpenAI, Anthropic, DeepSeek, Gemini)
-- Configure your API keys
-- Set up Linear integration
-- Generate `WORKFLOW.md` and `.env` files
+此交互式向导将：
+- 询问您首选的 LLM 供应商（OpenAI、Anthropic、DeepSeek、Gemini）
+- 配置您的 API 密钥
+- 设置 Linear 集成
+- 生成 `WORKFLOW.md` 和 `.env` 文件
 
-### 2. Validate Setup
+### 2. 验证设置
 
 ```bash
 symphony doctor
 ```
 
-Checks connectivity to:
-- LLM provider API
+检查以下连接：
+- LLM 供应商 API
 - Linear API
-- System requirements
+- 系统要求
 
-### 3. Run Symphony
+### 3. 运行 Symphony
 
 ```bash
-# Basic run
+# 基本运行
 symphony run WORKFLOW.md
 
-# With terminal dashboard
+# 带终端仪表板
 symphony run WORKFLOW.md --dashboard
 
-# With verbose logging
+# 带详细日志
 symphony run WORKFLOW.md --verbose
 ```
 
-## Manual Setup (Alternative)
+## 手动设置（替代方式）
 
-If you prefer manual configuration:
+如果您更喜欢手动配置：
 
-### 1. Create `WORKFLOW.md`
+### 1. 创建 `WORKFLOW.md`
 
 ```yaml
 ---
@@ -95,12 +95,12 @@ symphony:
       max_concurrent_agents: 3
 
   prompt: |
-    Work on Linear issue {{identifier}}: {{title}}
+    处理 Linear 问题 {{identifier}}: {{title}}
     {{description}}
 ---
 ```
 
-### 2. Create `.env`
+### 2. 创建 `.env`
 
 ```bash
 OPENAI_API_KEY=sk-...
@@ -108,63 +108,63 @@ LINEAR_API_KEY=lin_api_...
 LINEAR_PROJECT_SLUG=your-project
 ```
 
-### 3. Validate and Run
+### 3. 验证并运行
 
 ```bash
 symphony validate WORKFLOW.md
 symphony run WORKFLOW.md
 ```
 
-## Environment Variables
+## 环境变量
 
-### LLM Providers
+### LLM 供应商
 
-| Variable | Provider | Required |
+| 变量 | 供应商 | 必需 |
 |----------|----------|----------|
-| `OPENAI_API_KEY` | OpenAI | Yes, if using OpenAI |
-| `OPENAI_BASE_URL` | OpenAI | No (defaults to api.openai.com) |
-| `OPENAI_MODEL` | OpenAI | No (defaults to gpt-4) |
-| `ANTHROPIC_API_KEY` | Anthropic | Yes, if using Anthropic |
-| `ANTHROPIC_MODEL` | Anthropic | No (defaults to claude-3-sonnet) |
-| `DEEPSEEK_API_KEY` | DeepSeek | Yes, if using DeepSeek |
-| `GEMINI_API_KEY` | Gemini | Yes, if using Gemini |
+| `OPENAI_API_KEY` | OpenAI | 使用 OpenAI 时必需 |
+| `OPENAI_BASE_URL` | OpenAI | 否（默认为 api.openai.com） |
+| `OPENAI_MODEL` | OpenAI | 否（默认为 gpt-4） |
+| `ANTHROPIC_API_KEY` | Anthropic | 使用 Anthropic 时必需 |
+| `ANTHROPIC_MODEL` | Anthropic | 否（默认为 claude-3-sonnet） |
+| `DEEPSEEK_API_KEY` | DeepSeek | 使用 DeepSeek 时必需 |
+| `GEMINI_API_KEY` | Gemini | 使用 Gemini 时必需 |
 
-### Linear Integration
+### Linear 集成
 
-| Variable | Required | Description |
+| 变量 | 必需 | 描述 |
 |----------|----------|-------------|
-| `LINEAR_API_KEY` | Yes | Linear API key |
-| `LINEAR_PROJECT_SLUG` | Yes | Your Linear team/project slug |
+| `LINEAR_API_KEY` | 是 | Linear API 密钥 |
+| `LINEAR_PROJECT_SLUG` | 是 | 您的 Linear 团队/项目标识 |
 
-### Symphony Settings
+### Symphony 设置
 
-| Variable | Default | Description |
+| 变量 | 默认值 | 描述 |
 |----------|---------|-------------|
-| `SYMPHONY_LOG_LEVEL` | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `SYMPHONY_MAX_CONCURRENT` | 3 | Maximum concurrent agents |
-| `SYMPHONY_WORKSPACE_ROOT` | ./workspaces | Workspace directory |
+| `SYMPHONY_LOG_LEVEL` | INFO | 日志级别（DEBUG、INFO、WARNING、ERROR） |
+| `SYMPHONY_MAX_CONCURRENT` | 3 | 最大并发 Agent 数 |
+| `SYMPHONY_WORKSPACE_ROOT` | ./workspaces | 工作空间目录 |
 
-## Docker Deployment
+## Docker 部署
 
-### Quick Start with Docker
+### 使用 Docker 快速开始
 
 ```bash
-# Create configuration files first
+# 首先创建配置文件
 symphony init
 
-# Build and run
+# 构建并运行
 docker-compose up -d
 
-# View logs
+# 查看日志
 docker-compose logs -f symphony
 
-# Stop
+# 停止
 docker-compose down
 ```
 
-### Custom Configuration
+### 自定义配置
 
-Create `docker-compose.override.yml`:
+创建 `docker-compose.override.yml`：
 
 ```yaml
 version: "3.8"
@@ -176,74 +176,74 @@ services:
       - SYMPHONY_MAX_CONCURRENT=5
 ```
 
-### Production Deployment
+### 生产部署
 
 ```bash
-# With auto-update
+# 带自动更新
 docker-compose --profile auto-update up -d
 
-# With monitoring
+# 带监控
 docker-compose --profile monitoring up -d
 ```
 
-## Troubleshooting
+## 故障排除
 
-### Common Issues
+### 常见问题
 
-**LLM API Error**
+**LLM API 错误**
 ```bash
-# Check connectivity
+# 检查连接
 symphony doctor
 
-# Verify API key
+# 验证 API 密钥
 echo $OPENAI_API_KEY
 ```
 
-**Linear API Error**
+**Linear API 错误**
 ```bash
-# Test Linear connection
+# 测试 Linear 连接
 symphony doctor
 
-# Check project slug is correct
-# Should match your Linear team URL: https://linear.app/TEAM_SLUG
+# 检查项目标识是否正确
+# 应与您的 Linear 团队 URL 匹配：https://linear.app/TEAM_SLUG
 ```
 
-**Permission Denied**
+**权限被拒绝**
 ```bash
-# Ensure workspace directory is writable
+# 确保工作空间目录可写
 chmod 755 ./workspaces
 
-# Or change workspace root in WORKFLOW.md
+# 或在 WORKFLOW.md 中更改工作空间根目录
 ```
 
-### Getting Help
+### 获取帮助
 
 ```bash
-# Show all commands
+# 显示所有命令
 symphony --help
 
-# Command-specific help
+# 命令特定帮助
 symphony run --help
 symphony init --help
 
-# Validate configuration
+# 验证配置
 symphony validate WORKFLOW.md --strict
 ```
 
-## Next Steps
+## 下一步
 
-- Read the [full documentation](README.md)
-- Check [examples](examples/)
-- Configure [custom hooks](docs/hooks.md)
-- Set up [multiple LLM providers](docs/providers.md)
+- 阅读[完整文档](README.md)
+- 查看[示例](examples/)
+- 配置[自定义钩子](docs/hooks.md)
+- 设置[多个 LLM 供应商](docs/providers.md)
 
-## Quick Reference
+## 快速参考
 
-| Command | Description |
+| 命令 | 描述 |
 |---------|-------------|
-| `symphony init` | Interactive setup wizard |
-| `symphony run` | Start the orchestrator |
-| `symphony validate` | Check configuration |
-| `symphony doctor` | Environment diagnostics |
-| `symphony --version` | Show version |
-| `symphony --help` | Show help |
+| `symphony init` | 交互式设置向导 |
+| `symphony run` | 启动编排器 |
+| `symphony validate` | 检查配置 |
+| `symphony doctor` | 环境诊断 |
+| `symphony --version` | 显示版本 |
+| `symphony --help` | 显示帮助 |

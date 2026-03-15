@@ -1,5 +1,5 @@
-# Symphony - Docker Compose Configuration
-# Quick start: docker-compose up -d
+# Symphony - Docker Compose 配置
+# 快速启动: docker-compose up -d
 
 version: "3.8"
 
@@ -13,10 +13,10 @@ services:
     restart: unless-stopped
     
     environment:
-      # LLM Provider Configuration
-      # Uncomment and configure your preferred provider:
+      # LLM 供应商配置
+      # 取消注释并配置您首选的供应商：
       
-      # OpenAI (Default)
+      # OpenAI (默认)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
@@ -33,29 +33,29 @@ services:
       # - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       # - GEMINI_MODEL=${GEMINI_MODEL:-gemini-pro}
       
-      # Linear Configuration
+      # Linear 配置
       - LINEAR_API_KEY=${LINEAR_API_KEY:-}
       - LINEAR_PROJECT_SLUG=${LINEAR_PROJECT_SLUG:-}
       
-      # Symphony Settings
+      # Symphony 设置
       - SYMPHONY_WORKSPACE_ROOT=/app/workspaces
       - SYMPHONY_LOG_LEVEL=${SYMPHONY_LOG_LEVEL:-INFO}
       - SYMPHONY_MAX_CONCURRENT=${SYMPHONY_MAX_CONCURRENT:-3}
     
     volumes:
-      # Mount workflow configuration
+      # 挂载工作流配置
       - ./WORKFLOW.md:/app/WORKFLOW.md:ro
       
-      # Mount workspaces for persistence
+      # 挂载工作空间以持久化
       - symphony-workspaces:/app/workspaces
       
-      # Mount logs
+      # 挂载日志
       - ./logs:/app/logs
       
-      # Optional: Mount SSH keys for git operations
+      # 可选: 挂载 SSH 密钥用于 git 操作
       # - ~/.ssh:/home/symphony/.ssh:ro
       
-      # Optional: Mount custom prompts
+      # 可选: 挂载自定义提示词
       # - ./prompts:/app/prompts:ro
     
     ports:
@@ -63,7 +63,7 @@ services:
     
     command: ["/app/WORKFLOW.md", "--port", "8000"]
     
-    # Resource limits
+    # 资源限制
     deploy:
       resources:
         limits:
@@ -73,7 +73,7 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  # Optional: Redis for caching and state management
+  # 可选: Redis 用于缓存和状态管理
   redis:
     image: redis:7-alpine
     container_name: symphony-redis
@@ -81,11 +81,11 @@ services:
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
-    # Uncomment to expose Redis externally
+    # 取消注释以对外暴露 Redis
     # ports:
     #   - "6379:6379"
 
-  # Optional: Watchtower for automatic updates
+  # 可选: Watchtower 用于自动更新
   watchtower:
     image: containrrr/watchtower
     container_name: symphony-watchtower

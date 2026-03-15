@@ -1,31 +1,31 @@
 # Symphony Makefile
-# Quick commands for development and deployment
+# 开发和部署的快速命令
 
 .PHONY: help install install-dev test lint format clean docker-build docker-run
 
-# Default target
+# 默认目标
 help:
-	@echo "Symphony - Available commands:"
+	@echo "Symphony - 可用命令："
 	@echo ""
-	@echo "  make install       - Install Symphony via pip"
-	@echo "  make install-dev   - Install in development mode"
-	@echo "  make test          - Run tests"
-	@echo "  make lint          - Run linters"
-	@echo "  make format        - Format code"
-	@echo "  make clean         - Clean build artifacts"
+	@echo "  make install       - 通过 pip 安装 Symphony"
+	@echo "  make install-dev   - 以开发模式安装"
+	@echo "  make test          - 运行测试"
+	@echo "  make lint          - 运行代码检查"
+	@echo "  make format        - 格式化代码"
+	@echo "  make clean         - 清理构建产物"
 	@echo ""
-	@echo "Docker commands:"
-	@echo "  make docker-build  - Build Docker image"
-	@echo "  make docker-run    - Run with Docker Compose"
-	@echo "  make docker-stop   - Stop Docker containers"
+	@echo "Docker 命令："
+	@echo "  make docker-build  - 构建 Docker 镜像"
+	@echo "  make docker-run    - 使用 Docker Compose 运行"
+	@echo "  make docker-stop   - 停止 Docker 容器"
 	@echo ""
-	@echo "Development commands:"
-	@echo "  make init          - Initialize Symphony configuration"
-	@echo "  make doctor        - Run environment diagnostics"
-	@echo "  make run           - Run Symphony orchestrator"
+	@echo "开发命令："
+	@echo "  make init          - 初始化 Symphony 配置"
+	@echo "  make doctor        - 运行环境诊断"
+	@echo "  make run           - 运行 Symphony 编排器"
 	@echo ""
 
-# Installation
+# 安装
 install:
 	pip install -e .
 
@@ -33,7 +33,7 @@ install-dev:
 	pip install -e ".[dev]"
 	pre-commit install
 
-# Testing
+# 测试
 test:
 	pytest -v -m "not llm and not slow"
 
@@ -58,7 +58,7 @@ test-fast:
 test-parallel:
 	pytest -v -m "not llm and not slow" -n auto
 
-# Linting and formatting
+# 代码检查和格式化
 lint:
 	ruff check src tests
 	mypy src
@@ -67,7 +67,7 @@ format:
 	ruff check --fix src tests
 	ruff format src tests
 
-# Cleanup
+# 清理
 clean:
 	rm -rf build/
 	rm -rf dist/
@@ -79,7 +79,7 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
 
-# Docker commands
+# Docker 命令
 docker-build:
 	docker-compose build
 
@@ -92,7 +92,7 @@ docker-stop:
 docker-logs:
 	docker-compose logs -f symphony
 
-# Development workflow
+# 开发工作流
 init:
 	@python -m symphony.cli init
 
@@ -108,7 +108,7 @@ run-dashboard:
 validate:
 	@python -m symphony.cli validate WORKFLOW.md
 
-# Release
+# 发布
 build:
 	python -m build
 

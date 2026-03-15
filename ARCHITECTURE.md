@@ -1,45 +1,45 @@
-# Symphony Architecture
+# Symphony 架构
 
-## Overview
+## 概述
 
-Symphony is an agent orchestration system that automates software engineering tasks using LLM-powered agents. It integrates with Linear for issue tracking and supports multiple LLM providers.
+Symphony 是一个智能 Agent 编排系统，使用 LLM 驱动的 Agent 自动化软件工程任务。它与 Linear 集成进行问题跟踪，并支持多个 LLM 供应商。
 
-## System Architecture
+## 系统架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              CLI / API                                   │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────────────────┐  │
-│  │  init    │  │ validate │  │  doctor  │  │  run (with --dashboard) │  │
+│  │  初始化   │  │  验证    │  │  诊断    │  │  运行 (带 --dashboard)  │  │
 │  └──────────┘  └──────────┘  └──────────┘  └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           Orchestrator                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │    State     │  │  Dispatcher  │  │  Scheduler   │  │   Retry     │ │
-│  │   Manager    │  │              │  │              │  │   Handler   │ │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘ │
+│                            编排器                                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
+│  │    状态      │  │   调度器     │  │   调度器     │  │   重试      │  │
+│  │   管理器     │  │              │  │              │  │   处理器    │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘  │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                            Agent Layer                                   │
+│                           Agent 层                                       │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                      SymphonyAgent                                │   │
+│  │                     SymphonyAgent                                 │   │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │   │
-│  │  │  LLM     │  │  Tools   │  │  Prompt  │  │   Token Tracker  │  │   │
-│  │  │  Client  │  │  (File,  │  │  Builder │  │                  │  │   │
-│  │  │          │  │  Shell,  │  │          │  │                  │  │   │
-│  │  │          │  │  Linear) │  │          │  │                  │  │   │
+│  │  │  LLM     │  │   工具   │  │   提示词 │  │   Token 追踪器   │  │   │
+│  │  │  客户端  │  │ (文件、  │  │  构建器  │  │                  │  │   │
+│  │  │          │  │ Shell、  │  │          │  │                  │  │   │
+│  │  │          │  │ Linear)  │  │          │  │                  │  │   │
 │  │  └──────────┘  └──────────┘  └──────────┘  └──────────────────┘  │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         External Services                                │
+│                         外部服务                                         │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
 │  │  OpenAI  │  │ Anthropic│  │ DeepSeek │  │  Gemini  │  │  Azure   │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
@@ -50,173 +50,173 @@ Symphony is an agent orchestration system that automates software engineering ta
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Core Components
+## 核心组件
 
-### 1. Configuration System (`symphony/config/`)
+### 1. 配置系统 (`symphony/config/`)
 
-**Purpose**: Manage configuration from multiple sources with priority ordering.
+**用途**: 管理来自多个来源的配置，具有优先级排序。
 
-**Key Classes**:
-- `Config`: Main configuration container
-- `LLMConfig`: LLM provider settings
-- `TrackerConfig`: Linear integration settings
-- `WorkspaceConfig`: Workspace management settings
+**关键类**:
+- `Config`: 主配置容器
+- `LLMConfig`: LLM 供应商设置
+- `TrackerConfig`: Linear 集成设置
+- `WorkspaceConfig`: 工作空间管理设置
 
-**Configuration Priority**:
-1. WORKFLOW.md YAML frontmatter
-2. Environment variables
-3. .env file
-4. Default values
+**配置优先级**:
+1. WORKFLOW.md YAML 前置元数据
+2. 环境变量
+3. .env 文件
+4. 默认值
 
-### 2. LLM Client (`symphony/llm/`)
+### 2. LLM 客户端 (`symphony/llm/`)
 
-**Purpose**: Provider-agnostic LLM interface supporting multiple backends.
+**用途**: 支持多个后端的供应商无关 LLM 接口。
 
-**Key Classes**:
-- `LLMClient`: Unified interface for all providers
-- `Message`: Message format standardization
-- `LLMResponse`: Normalized response handling
+**关键类**:
+- `LLMClient`: 所有供应商的统一接口
+- `Message`: 消息格式标准化
+- `LLMResponse`: 规范化响应处理
 
-**Supported Providers**:
+**支持的供应商**:
 - OpenAI (GPT-4, GPT-3.5)
 - Anthropic (Claude 3)
 - DeepSeek
 - Google Gemini
 - Azure OpenAI
 
-### 3. Orchestrator (`symphony/orchestrator/`)
+### 3. 编排器 (`symphony/orchestrator/`)
 
-**Purpose**: Central scheduler managing agent lifecycle.
+**用途**: 管理 Agent 生命周期的中央调度器。
 
-**Key Classes**:
-- `Orchestrator`: Main orchestration loop
-- `OrchestratorState`: State persistence
-- `RunningEntry`, `RetryEntry`: State tracking
+**关键类**:
+- `Orchestrator`: 主编排循环
+- `OrchestratorState`: 状态持久化
+- `RunningEntry`, `RetryEntry`: 状态跟踪
 
-**Responsibilities**:
-- Polling Linear for new issues
-- Managing concurrent agent slots
-- Handling retries with exponential backoff
-- State reconciliation
+**职责**:
+- 轮询 Linear 获取新问题
+- 管理并发 Agent 槽位
+- 使用指数退避处理重试
+- 状态协调
 
 ### 4. Agent (`symphony/agents/`)
 
-**Purpose**: Execute tasks using LLM with tool support.
+**用途**: 使用支持工具的 LLM 执行任务。
 
-**Key Classes**:
-- `SymphonyAgent`: Main agent implementation
-- `AgentSession`: Session state management
+**关键类**:
+- `SymphonyAgent`: 主 Agent 实现
+- `AgentSession`: 会话状态管理
 
-**Tools**:
-- `read_file` / `write_file`: File operations
-- `execute_command`: Shell command execution
-- `linear_graphql`: Linear API queries
-- `add_comment`: Add comments to issues
+**工具**:
+- `read_file` / `write_file`: 文件操作
+- `execute_command`: Shell 命令执行
+- `linear_graphql`: Linear API 查询
+- `add_comment`: 向问题添加评论
 
-### 5. Tracker (`symphony/trackers/`)
+### 5. 跟踪器 (`symphony/trackers/`)
 
-**Purpose**: Interface with issue tracking systems.
+**用途**: 与问题跟踪系统接口。
 
-**Key Classes**:
-- `LinearTracker`: Linear GraphQL API client
-- `Issue`: Normalized issue representation
+**关键类**:
+- `LinearTracker`: Linear GraphQL API 客户端
+- `Issue`: 规范化问题表示
 
-### 6. Workspace Manager (`symphony/workspace/`)
+### 6. 工作空间管理器 (`symphony/workspace/`)
 
-**Purpose**: Manage agent working directories.
+**用途**: 管理 Agent 工作目录。
 
-**Key Classes**:
-- `WorkspaceManager`: Directory lifecycle management
-- `WorkspaceContext`: Path safety validation
+**关键类**:
+- `WorkspaceManager`: 目录生命周期管理
+- `WorkspaceContext`: 路径安全验证
 
-**Hooks**:
-- `after_create`: Initialize workspace
-- `before_run`: Prepare for execution
-- `after_run`: Post-execution cleanup
-- `before_remove`: Final cleanup
+**钩子**:
+- `after_create`: 初始化工作空间
+- `before_run`: 准备执行
+- `after_run`: 执行后清理
+- `before_remove`: 最终清理
 
-### 7. Dashboard (`symphony/dashboard/`)
+### 7. 仪表板 (`symphony/dashboard/`)
 
-**Purpose**: Real-time terminal UI for monitoring.
+**用途**: 实时监控的终端 UI。
 
-**Key Classes**:
-- `Dashboard`: Rich-based terminal interface
+**关键类**:
+- `Dashboard`: 基于 Rich 的终端界面
 
-**Features**:
-- Running agents list
-- LLM token usage statistics
-- Retry queue status
-- System health
+**特性**:
+- 运行中的 Agent 列表
+- LLM Token 使用统计
+- 重试队列状态
+- 系统健康状态
 
-## Data Flow
+## 数据流
 
-### Issue Processing Flow
+### 问题处理流程
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Linear    │────▶│  Issue      │────▶│  Claim      │
-│   Issue     │     │  Fetched    │     │  Attempt    │
+│   Linear    │────▶│   问题      │────▶│   认领      │
+│   问题      │     │   已获取    │     │   尝试      │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                                                ▼
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Linear     │◀────│  Results    │◀────│  Agent      │
-│  Updated    │     │  Reported   │     │  Execution  │
+│   Linear    │◀────│   结果      │◀────│   Agent     │
+│   已更新    │     │   已报告    │     │   执行      │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                                         ┌──────┴──────┐
-                                        │   Workspace  │
-                                        │   Created    │
+                                        │   工作空间   │
+                                        │   已创建    │
                                         └─────────────┘
 ```
 
-### Agent Execution Flow
+### Agent 执行流程
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Start     │────▶│  Build      │────▶│  LLM        │
-│   Session   │     │  Prompt     │     │  Request    │
+│   启动      │────▶│   构建      │────▶│   LLM       │
+│   会话      │     │   提示词    │     │   请求      │
 └─────────────┘     └─────────────┘     └──────┬──────┘
                                                │
                         ┌──────────────────────┼──────────────────────┐
                         │                      │                      │
                         ▼                      ▼                      ▼
                  ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-                 │  Tool Call  │       │  Content    │       │   Error     │
-                 │  Detected   │       │  Response   │       │             │
+                 │  工具调用   │       │  内容       │       │   错误      │
+                 │  检测到     │       │  响应       │       │             │
                  └──────┬──────┘       └──────┬──────┘       └──────┬──────┘
                         │                      │                      │
                         ▼                      │                      │
                  ┌─────────────┐               │                      │
-                 │  Execute    │               │                      │
-                 │  Tools      │               │                      │
+                 │  执行       │               │                      │
+                 │  工具       │               │                      │
                  └──────┬──────┘               │                      │
                         │                      │                      │
                         └──────────────────────┼──────────────────────┘
                                                │
                                                ▼
                                         ┌─────────────┐
-                                        │   Done?     │
-                                        │  (max turns │
-                                        │  or finish) │
+                                        │   完成?     │
+                                        │ (最大轮数   │
+                                        │ 或完成)     │
                                         └──────┬──────┘
                                                │
                          ┌─────────────────────┴─────────────────────┐
                          │                                             │
                          ▼                                             ▼
                   ┌─────────────┐                             ┌─────────────┐
-                  │   Report    │                             │   Next      │
-                  │   Results   │                             │   Turn      │
+                  │   报告      │                             │   下一轮    │
+                  │   结果      │                             │             │
                   └─────────────┘                             └─────────────┘
 ```
 
-## Multi-Provider LLM Support
+## 多供应商 LLM 支持
 
 ```
                     ┌─────────────────────────────────────┐
                     │           LLMClient                 │
                     │  ┌─────────────────────────────┐    │
-                    │  │    Unified Interface        │    │
+                    │  │       统一接口              │    │
                     │  │  - chat_completion()        │    │
                     │  │  - embed()                  │    │
                     │  └─────────────────────────────┘    │
@@ -227,72 +227,72 @@ Symphony is an agent orchestration system that automates software engineering ta
            ▼                       ▼                       ▼
     ┌─────────────┐        ┌─────────────┐        ┌─────────────┐
     │   OpenAI    │        │  Anthropic  │        │  DeepSeek   │
-    │   Adapter   │        │   Adapter   │        │   Adapter   │
+    │   适配器    │        │   适配器    │        │   适配器    │
     └─────────────┘        └─────────────┘        └─────────────┘
            │                       │                       │
            ▼                       ▼                       ▼
     ┌─────────────┐        ┌─────────────┐        ┌─────────────┐
-    │   GPT-4     │        │   Claude    │        │   Chat      │
-    │   GPT-4o    │        │   3 Opus    │        │   Model     │
+    │   GPT-4     │        │   Claude    │        │   聊天      │
+    │   GPT-4o    │        │   3 Opus    │        │   模型      │
     │   o1        │        │   3 Sonnet  │        │             │
     └─────────────┘        └─────────────┘        └─────────────┘
 ```
 
-## Security Considerations
+## 安全考虑
 
-### Path Safety
-- All file operations use `_resolve_path()` to ensure paths stay within workspace
-- Symbolic link traversal is prevented
-- Relative path resolution is validated
+### 路径安全
+- 所有文件操作使用 `_resolve_path()` 确保路径停留在工作空间内
+- 防止符号链接遍历
+- 验证相对路径解析
 
-### API Key Handling
-- Keys are loaded from environment variables or .env files
-- Keys are never logged or exposed in error messages
-- Support for key rotation via environment
+### API 密钥处理
+- 密钥从环境变量或 .env 文件加载
+- 密钥永远不会在日志或错误消息中暴露
+- 支持通过环境进行密钥轮换
 
-### Hook Execution
-- Hooks run with configurable timeouts
-- Shell commands are sandboxed to workspace
-- Output is captured and logged
+### 钩子执行
+- 钩子以可配置的超时时间运行
+- Shell 命令在工作空间内被沙箱化
+- 输出被捕获并记录
 
-## Scalability
+## 可扩展性
 
-### Concurrent Agents
-- Configurable max concurrent agents
-- Slot-based allocation
-- Graceful handling of resource limits
+### 并发 Agent
+- 可配置的最大并发 Agent 数
+- 基于槽位的分配
+- 优雅地处理资源限制
 
-### State Persistence
-- In-memory state with optional persistence
-- State reconciliation on restart
-- Atomic state transitions
+### 状态持久化
+- 内存中的状态，可选持久化
+- 重启时状态协调
+- 原子状态转换
 
-### Retry Strategy
-- Exponential backoff for failures
-- Separate queue for continuation retries
-- Configurable retry limits
+### 重试策略
+- 失败时指数退避
+- 单独队列用于连续重试
+- 可配置的重试限制
 
-## Extension Points
+## 扩展点
 
-### Adding New LLM Providers
-1. Create adapter class in `symphony/llm/providers/`
-2. Implement `chat_completion()` method
-3. Register in `LLMClient._get_provider_client()`
+### 添加新的 LLM 供应商
+1. 在 `symphony/llm/providers/` 中创建适配器类
+2. 实现 `chat_completion()` 方法
+3. 在 `LLMClient._get_provider_client()` 中注册
 
-### Adding New Tools
-1. Define tool function in `symphony/agents/tools/`
-2. Add to `__all__` in `__init__.py`
-3. Register in agent's tool registry
-4. Update system prompt to describe tool
+### 添加新工具
+1. 在 `symphony/agents/tools/` 中定义工具函数
+2. 添加到 `__init__.py` 中的 `__all__`
+3. 在 Agent 的工具注册表中注册
+4. 更新系统提示词以描述工具
 
-### Custom Trackers
-1. Implement `BaseTracker` interface
-2. Override `poll()`, `claim()`, `complete()`
-3. Register in orchestrator factory
+### 自定义跟踪器
+1. 实现 `BaseTracker` 接口
+2. 覆盖 `poll()`, `claim()`, `complete()`
+3. 在编排器工厂中注册
 
-## Configuration Examples
+## 配置示例
 
-### Minimal Configuration
+### 最小配置
 ```yaml
 symphony:
   version: "1.0"
@@ -305,7 +305,7 @@ symphony:
       project_slug: my-team
 ```
 
-### Advanced Configuration
+### 高级配置
 ```yaml
 symphony:
   version: "1.0"
@@ -332,27 +332,27 @@ symphony:
         git clone $REPO_URL $SYMPHONY_WORKSPACE
 ```
 
-## Development
+## 开发
 
-### Running Tests
+### 运行测试
 ```bash
-make test          # Run all tests
-make test-cov      # Run with coverage
-make lint          # Run linters
-make format        # Format code
+make test          # 运行所有测试
+make test-cov      # 带覆盖率运行
+make lint          # 运行代码检查
+make format        # 格式化代码
 ```
 
-### Docker Development
+### Docker 开发
 ```bash
-make docker-build  # Build image
-make docker-run    # Run containers
-make docker-logs   # View logs
+make docker-build  # 构建镜像
+make docker-run    # 运行容器
+make docker-logs   # 查看日志
 ```
 
-### Local Development
+### 本地开发
 ```bash
-make install-dev   # Install with dev dependencies
-symphony init      # Initialize config
-symphony doctor    # Check environment
-symphony run       # Start orchestrator
+make install-dev   # 安装开发依赖
+symphony init      # 初始化配置
+symphony doctor    # 检查环境
+symphony run       # 启动编排器
 ```

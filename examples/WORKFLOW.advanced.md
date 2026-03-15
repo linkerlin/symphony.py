@@ -3,17 +3,17 @@ symphony:
   version: "1.0"
   
   settings:
-    # LLM Configuration - Using Anthropic Claude
+    # LLM 配置 - 使用 Anthropic Claude
     llm:
       provider: anthropic
       model: claude-3-sonnet-20240229
       temperature: 0.7
       max_tokens: 8192
     
-    # Advanced Agent Configuration
+    # 高级 Agent 配置
     agent:
       max_turns: 50
-      # File context patterns
+      # 文件上下文匹配模式
       include_patterns:
         - "**/*.py"
         - "**/*.js"
@@ -38,12 +38,12 @@ symphony:
         - "**/*.min.js"
         - "**/*.min.css"
     
-    # Linear Integration
+    # Linear 集成
     tracker:
       kind: linear
       endpoint: https://api.linear.app/graphql
       project_slug: my-team
-      # Only process issues assigned to this user
+      # 仅处理分配给此用户的问题
       assignee: user_uuid_here
       active_states:
         - "Backlog"
@@ -54,101 +54,101 @@ symphony:
         - "Done"
         - "Canceled"
     
-    # Workspace with custom hooks
+    # 带自定义钩子的工作空间
     workspace:
       root: ./workspaces
       max_concurrent_agents: 5
     
-    # Lifecycle hooks
+    # 生命周期钩子
     hooks:
       timeout_ms: 60000
-      # Called after workspace is created
+      # 在工作空间创建后调用
       after_create: |
-        echo "Workspace created at $SYMPHONY_WORKSPACE"
-        echo "Issue: $SYMPHONY_ISSUE_ID"
-        # Initialize git if needed
+        echo "工作空间创建于 $SYMPHONY_WORKSPACE"
+        echo "问题: $SYMPHONY_ISSUE_ID"
+        # 如果需要则初始化 git
         if [ ! -d "$SYMPHONY_WORKSPACE/.git" ]; then
           git clone https://github.com/myorg/myrepo.git "$SYMPHONY_WORKSPACE"
         fi
       
-      # Called before agent starts
+      # 在 Agent 启动前调用
       before_run: |
-        echo "Starting work on $SYMPHONY_ISSUE_ID"
+        echo "开始处理 $SYMPHONY_ISSUE_ID"
         cd "$SYMPHONY_WORKSPACE"
         git fetch origin
         git checkout -b "feature/$SYMPHONY_ISSUE_ID" || true
       
-      # Called after agent finishes
+      # 在 Agent 完成后调用
       after_run: |
-        echo "Completed $SYMPHONY_ISSUE_ID"
+        echo "完成 $SYMPHONY_ISSUE_ID"
         cd "$SYMPHONY_WORKSPACE"
         git add -A
         git commit -m "WIP: $SYMPHONY_ISSUE_ID" || true
       
-      # Called before workspace is removed
+      # 在工作空间移除前调用
       before_remove: |
-        echo "Cleaning up $SYMPHONY_WORKSPACE"
+        echo "清理 $SYMPHONY_WORKSPACE"
 
-  # Advanced Prompt Template with Handlebars
+  # 带 Handlebars 的高级提示词模板
   prompt: |
-    You are an expert software engineer working on Linear issue {{identifier}}: {{title}}
+    您是一位处理 Linear 问题 {{identifier}}: {{title}} 的资深软件工程师
     
     {{#if labels}}
-    Labels: {{#each labels}}{{#if @index}}, {{/if}}{{this}}{{/each}}
+    标签: {{#each labels}}{{#if @index}}, {{/if}}{{this}}{{/each}}
     {{/if}}
     
     {{#if blockers}}
-    ⚠️ Blocked by: {{#each blockers}}{{#if @index}}, {{/if}}{{this}}{{/each}}
-    Please note any blockers encountered.
+    ⚠️ 被阻塞: {{#each blockers}}{{#if @index}}, {{/if}}{{this}}{{/each}}
+    请记录遇到的任何阻塞项。
     {{/if}}
     
-    ## Description
+    ## 描述
     {{description}}
     
     {{#if attempt}}
-    ## Retry Context
-    This is attempt {{attempt}} of a previous failed run.
-    Please review previous changes carefully and fix any issues.
+    ## 重试上下文
+    这是之前失败运行的第 {{attempt}} 次尝试。
+    请仔细查看之前的更改并修复任何问题。
     {{/if}}
     
-    ## Your Task
+    ## 您的任务
     
-    1. **Understand**: Read and understand the requirements
-    2. **Explore**: Use tools to explore the codebase structure
-    3. **Plan**: Create a plan of action
-    4. **Implement**: Make the necessary changes
-    5. **Test**: Run tests or verify the changes work
-    6. **Document**: Update relevant documentation
+    1. **理解**: 阅读并理解需求
+    2. **探索**: 使用工具探索代码库结构
+    3. **计划**: 制定行动计划
+    4. **实现**: 进行必要的更改
+    5. **测试**: 运行测试或验证更改是否有效
+    6. **文档**: 更新相关文档
     
-    ## Guidelines
+    ## 指南
     
-    - Write clean, well-documented code
-    - Follow existing code style and patterns
-    - Add tests for new functionality
-    - Update README/docs if needed
-    - Use `add_comment` to report progress on the Linear issue
+    - 编写干净、文档完善的代码
+    - 遵循现有代码风格和模式
+    - 为新功能添加测试
+    - 如有需要更新 README/文档
+    - 使用 `add_comment` 在 Linear 问题上报告进度
     
     {{#if workspace}}
-    Workspace: {{workspace}}
+    工作空间: {{workspace}}
     {{/if}}
 ---
 
-# Advanced Symphony Workflow
+# 高级 Symphony 工作流
 
-This configuration demonstrates advanced Symphony features:
+此配置演示了 Symphony 的高级特性：
 
-- Custom lifecycle hooks for git operations
-- Multiple file type support
-- Retry context handling
-- Detailed prompt template
+- 用于 git 操作的自定义生命周期钩子
+- 多种文件类型支持
+- 重试上下文处理
+- 详细的提示词模板
 
-## Setup
+## 设置
 
 ```bash
-# Set environment variables
+# 设置环境变量
 export ANTHROPIC_API_KEY=sk-ant-...
 export LINEAR_API_KEY=lin_api_...
 
-# Run Symphony
+# 运行 Symphony
 symphony run WORKFLOW.advanced.md --dashboard
 ```

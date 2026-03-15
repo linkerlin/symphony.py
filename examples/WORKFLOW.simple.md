@@ -33,31 +33,31 @@ symphony:
       max_concurrent_agents: 3
 
   prompt: |
-    You are working on Linear issue {{identifier}}: {{title}}
+    您正在处理 Linear 问题 {{identifier}}: {{title}}
     
-    Description:
+    描述：
     {{description}}
     
-    Your task:
-    1. Understand the requirements
-    2. Explore the codebase
-    3. Implement the solution
-    4. Test your changes
-    5. Summarize what was done
+    您的任务：
+    1. 理解需求
+    2. 探索代码库
+    3. 实现解决方案
+    4. 测试您的更改
+    5. 总结完成的内容
 ---
 
-# Simple Symphony Workflow
+# 简单 Symphony 工作流
 
-This is a minimal Symphony configuration for quick start.
+这是一个用于快速入门的 Symphony 最小配置。
 
-## Usage
+## 用法
 
-1. Copy this file to `WORKFLOW.md`
-2. Edit `project_slug` in the configuration
-3. Create `.env` with your API keys:
+1. 将此文件复制为 `WORKFLOW.md`
+2. 在配置中编辑 `project_slug`
+3. 使用您的 API 密钥创建 `.env`：
    ```
    OPENAI_API_KEY=sk-...
    LINEAR_API_KEY=lin_api_...
    LINEAR_PROJECT_SLUG=my-project
    ```
-4. Run: `symphony run WORKFLOW.md`
+4. 运行: `symphony run WORKFLOW.md`

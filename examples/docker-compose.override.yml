@@ -1,24 +1,24 @@
-# Docker Compose Override Example
-# Copy to docker-compose.override.yml and customize
+# Docker Compose 覆盖示例
+# 复制为 docker-compose.override.yml 并自定义
 
 version: "3.8"
 
 services:
   symphony:
-    # Mount your source code for agent to work on
+    # 挂载您的源代码供 Agent 处理
     volumes:
       - ./WORKFLOW.md:/app/WORKFLOW.md:ro
       - ./workspaces:/app/workspaces
       - ./logs:/app/logs
-      # Mount your project for agent to edit
+      # 挂载您的项目供 Agent 编辑
       - ../my-project:/src:rw
     
     environment:
-      # Override specific settings
+      # 覆盖特定设置
       - SYMPHONY_MAX_CONCURRENT=5
       - SYMPHONY_LOG_LEVEL=DEBUG
     
-    # Resource limits for production
+    # 生产环境资源限制
     deploy:
       resources:
         limits:
@@ -28,7 +28,7 @@ services:
           cpus: '1.0'
           memory: 2G
 
-  # Add monitoring (optional)
+  # 添加监控（可选）
   prometheus:
     image: prom/prometheus
     volumes:

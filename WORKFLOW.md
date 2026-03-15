@@ -43,11 +43,11 @@ hooks:
   after_create: |
     # 在此处初始化仓库
     # git clone git@github.com:your-org/your-repo.git .
-    echo "Workspace created"
+    echo "工作空间已创建"
   before_run: |
-    echo "Starting agent run"
+    echo "开始 Agent 运行"
   after_run: |
-    echo "Agent run completed"
+    echo "Agent 运行完成"
   timeout_ms: 60000
 
 # Agent 配置
@@ -64,35 +64,35 @@ server:
   host: 127.0.0.1
 ---
 
-You are working on Linear issue `{{ issue.identifier }}`
+您正在处理 Linear 问题 `{{ issue.identifier }}`
 
 {% if attempt %}
-Continuation context:
+继续上下文：
 
-- This is retry attempt #{{ attempt }} because the ticket is still in an active state.
-- Resume from the current workspace state instead of restarting from scratch.
+- 这是第 {{ attempt }} 次重试，因为问题仍处于活动状态。
+- 从当前工作空间状态恢复，而不是从头开始。
 {% endif %}
 
-Issue context:
-- Identifier: {{ issue.identifier }}
-- Title: {{ issue.title }}
-- Current status: {{ issue.state }}
-- Labels: {{ issue.labels }}
+问题上下文：
+- 标识符: {{ issue.identifier }}
+- 标题: {{ issue.title }}
+- 当前状态: {{ issue.state }}
+- 标签: {{ issue.labels }}
 {% if issue.url %}
 - URL: {{ issue.url }}
 {% endif %}
 
-Description:
+描述：
 {% if issue.description %}
 {{ issue.description }}
 {% else %}
-No description provided.
+未提供描述。
 {% endif %}
 
-Instructions:
+指令：
 
-1. This is an unattended orchestration session. Never ask a human to perform follow-up actions.
-2. Only stop early for a true blocker (missing required auth/permissions/secrets).
-3. Final message must report completed actions and blockers only.
+1. 这是一个无人值守的编排会话。永远不要要求人工执行后续操作。
+2. 仅在真正阻塞时（缺少必需的认证/权限/密钥）才提前停止。
+3. 最终消息必须仅报告已完成的操作和阻塞项。
 
-Work only in the provided repository copy. Do not touch any other path.
+仅在提供的仓库副本中工作。不要触碰任何其他路径。
