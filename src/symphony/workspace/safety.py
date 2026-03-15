@@ -15,6 +15,24 @@ class PathSafetyError(Exception):
     pass
 
 
+def _normalize_path_for_comparison(path: Path) -> Path:
+    """规范化路径以进行比较，处理 macOS /private 前缀。
+    
+    在 macOS 上，/var/folders/... 会被解析为 /private/var/folders/...
+    这会导致路径比较失败。此函数通过比较 realpath 来规范化路径。
+    
+    参数:
+        path: 要规范化的路径
+        
+    返回:
+        规范化后的路径
+    """
+    import os
+    # 使用 os.path.realpath 来获取真实的绝对路径
+    real_path = os.path.realpath(path)
+    return Path(real_path)
+
+
 def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path:
     """解析相对于工作空间的路径，并进行安全检查。
     
@@ -35,10 +53,13 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
         # 未指定工作空间，使用当前目录
         return path.resolve()
     
-    workspace_path = Path(workspace).expanduser().resolve()
+    # 使用 realpath 来规范化工作空间路径（处理 macOS /private 前缀）
+    import os
+    workspace_real = os.path.realpath(os.path.expanduser(workspace))
+    workspace_path = Path(workspace_real)
     
-    # 检查路径遍历尝试
-    if PathSafety.check_path_traversal(file_path):
+    # 检查路径遍历尝试（仅对相对路径，绝对路径在下面检查是否在工作空间内）
+    if not path.is_absolute() and PathSafety.check_path_traversal(file_path):
         raise PathSafetyError(
             f"Path traversal detected: {file_path}"
         )
@@ -46,9 +67,12 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
     # 解析相对于工作空间的路径
     if path.is_absolute():
         # 如果是绝对路径，检查是否在工作空间内
+        # 使用 realpath 进行规范化比较
+        path_real = os.path.realpath(path)
         try:
-            path.relative_to(workspace_path)
-            return path
+            Path(path_real).relative_to(workspace_path)
+            # 返回原始路径，但确保它在工作空间内
+            return Path(path_real)
         except ValueError:
             raise PathSafetyError(
                 f"Absolute path {file_path} is outside workspace {workspace_path}"
@@ -56,10 +80,11 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
     else:
         # 相对路径 - 与工作空间拼接
         full_path = (workspace_path / path).resolve()
+        full_path_real = os.path.realpath(full_path)
         
-        # 验证解析后的路径仍在工作空间内
+        # 验证解析后的路径仍在工作空间内（使用规范化路径比较）
         try:
-            full_path.relative_to(workspace_path)
+            Path(full_path_real).relative_to(workspace_path)
         except ValueError:
             raise PathSafetyError(
                 f"Resolved path {full_path} escapes workspace {workspace_path}"
@@ -67,15 +92,15 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
         
         # 检查符号链接逸出
         if full_path.exists() and full_path.is_symlink():
-            real_path = full_path.resolve()
+            real_path = os.path.realpath(full_path)
             try:
-                real_path.relative_to(workspace_path)
+                Path(real_path).relative_to(workspace_path)
             except ValueError:
                 raise PathSafetyError(
                     f"Symlink {full_path} points outside workspace"
                 )
         
-        return full_path
+        return Path(full_path_real)
 
 
 class PathSafety:

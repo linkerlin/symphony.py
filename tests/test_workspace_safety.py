@@ -11,9 +11,16 @@ from pathlib import Path
 
 import pytest
 
+import os
+
 from symphony.agents.tools.file_tools import list_directory, read_file, write_file
 from symphony.agents.tools.shell_tool import execute_command
 from symphony.workspace import PathSafetyError, resolve_workspace_path
+
+
+def _normalize_path_for_test(path: Path) -> Path:
+    """规范化路径以进行比较，处理 macOS /private 前缀。"""
+    return Path(os.path.realpath(path))
 
 
 class TestPathResolution:
@@ -26,7 +33,8 @@ class TestPathResolution:
             workspace.mkdir()
             
             result = resolve_workspace_path("test.py", str(workspace))
-            assert result == workspace / "test.py"
+            # 使用规范化路径进行比较，处理 macOS /private 前缀
+            assert _normalize_path_for_test(result) == _normalize_path_for_test(workspace / "test.py")
     
     def test_resolve_nested_path(self):
         """Test resolving nested path within workspace."""
@@ -36,7 +44,8 @@ class TestPathResolution:
             (workspace / "subdir").mkdir()
             
             result = resolve_workspace_path("subdir/test.py", str(workspace))
-            assert result == workspace / "subdir" / "test.py"
+            # 使用规范化路径进行比较，处理 macOS /private 前缀
+            assert _normalize_path_for_test(result) == _normalize_path_for_test(workspace / "subdir" / "test.py")
     
     def test_resolve_absolute_path_in_workspace(self):
         """Test resolving absolute path that is within workspace."""
@@ -45,7 +54,8 @@ class TestPathResolution:
             workspace.mkdir()
             
             result = resolve_workspace_path(str(workspace / "test.py"), str(workspace))
-            assert result == workspace / "test.py"
+            # 使用规范化路径进行比较，处理 macOS /private 前缀
+            assert _normalize_path_for_test(result) == _normalize_path_for_test(workspace / "test.py")
     
     def test_resolve_path_with_dotdot_blocked(self):
         """Test that .. is blocked from escaping workspace."""
@@ -110,7 +120,8 @@ class TestFileToolSafety:
             result = read_file("test.txt", _workspace=str(workspace))
             
             assert result["content"] == "hello"
-            assert result["path"] == str(test_file)
+            # 使用规范化路径进行比较，处理 macOS /private 前缀
+            assert _normalize_path_for_test(Path(result["path"])) == _normalize_path_for_test(test_file)
     
     def test_read_file_outside_workspace_blocked(self):
         """Test reading file outside workspace is blocked."""
@@ -120,8 +131,10 @@ class TestFileToolSafety:
             outside = Path(tmpdir) / "secret.txt"
             outside.write_text("secret")
             
-            with pytest.raises(PathSafetyError):
-                read_file("../secret.txt", _workspace=str(workspace))
+            result = read_file("../secret.txt", _workspace=str(workspace))
+            # File tools catch PathSafetyError and return error dict
+            assert result["success"] is False
+            assert "security" in result.get("error", "").lower() or "violation" in result.get("error", "").lower()
     
     def test_write_file_in_workspace(self):
         """Test writing file within workspace."""
@@ -139,8 +152,10 @@ class TestFileToolSafety:
             workspace = Path(tmpdir) / "workspace"
             workspace.mkdir()
             
-            with pytest.raises(PathSafetyError):
-                write_file("../outside.txt", "content", _workspace=str(workspace))
+            result = write_file("../outside.txt", "content", _workspace=str(workspace))
+            # File tools catch PathSafetyError and return error dict
+            assert result["success"] is False
+            assert "security" in result.get("error", "").lower() or "violation" in result.get("error", "").lower()
             
             # Verify file was not created
             assert not (Path(tmpdir) / "outside.txt").exists()
@@ -169,8 +184,10 @@ class TestFileToolSafety:
             workspace = Path(tmpdir) / "workspace"
             workspace.mkdir()
             
-            with pytest.raises(PathSafetyError):
-                list_directory("..", _workspace=str(workspace))
+            result = list_directory("..", _workspace=str(workspace))
+            # File tools catch PathSafetyError and return error dict
+            assert result["success"] is False
+            assert "security" in result.get("error", "").lower() or "violation" in result.get("error", "").lower()
 
 
 class TestShellToolSafety:

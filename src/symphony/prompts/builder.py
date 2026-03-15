@@ -19,14 +19,18 @@ logger = logging.getLogger(__name__)
 # 当工作流正文为空时使用的默认提示词模板
 DEFAULT_PROMPT_TEMPLATE = """You are working on a Linear issue.
 
-Identifier: {{ issue.identifier }}
-Title: {{ issue.title }}
+Identifier: {{ identifier }}
+Title: {{ title }}
 
 Description:
-{% if issue.description %}
-{{ issue.description }}
+{% if description %}
+{{ description }}
 {% else %}
 No description provided.
+{% endif %}
+
+{% if blockers %}
+Blocked by: {% for blocker in blockers %}{{ blocker }} {% endfor %}
 {% endif %}
 
 Please analyze this issue and implement the necessary changes.
@@ -106,14 +110,23 @@ class PromptBuilder:
         """
         template = self._get_template()
 
-        # 构建模板的上下文
+        # 构建模板的上下文 - 同时支持 issue.xxx 和直接的 xxx 访问
+        issue_dict = issue.to_prompt_dict()
         context = {
-            "issue": issue.to_prompt_dict(),
+            "issue": issue_dict,
             "attempt": attempt,
             "turn_number": turn_number,
             "max_turns": max_turns,
             "is_first_turn": turn_number == 1,
             "is_retry": attempt is not None and attempt > 0,
+            # 也直接暴露 issue 的字段，便于简单模板访问
+            "id": issue.id,
+            "identifier": issue.identifier,
+            "title": issue.title,
+            "description": issue.description or "",
+            "state": issue.state,
+            "labels": issue.labels,
+            "blockers": issue.blocked_by if hasattr(issue, 'blocked_by') else [],
         }
 
         try:
@@ -151,3 +164,20 @@ class PromptBuilder:
     def get_template(self) -> str:
         """获取原始模板字符串。"""
         return self.template_str
+
+    def render(self, **context) -> str:
+        """使用提供的上下文渲染模板。
+
+        参数:
+            **context: 模板变量
+
+        返回:
+            渲染后的字符串
+        """
+        template = self._get_template()
+        try:
+            return template.render(**context)
+        except UndefinedError as e:
+            raise ValueError(f"模板变量未定义: {e}") from e
+        except Exception as e:
+            raise ValueError(f"模板渲染失败: {e}") from e

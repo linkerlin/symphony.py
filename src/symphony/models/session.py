@@ -145,14 +145,19 @@ class SessionState:
         end = self.ended_at or datetime.utcnow()
         return (end - self.started_at).total_seconds()
 
+    def start(self) -> None:
+        """启动会话，设置状态为 RUNNING 并记录开始时间。"""
+        self.status = SessionStatus.RUNNING
+        self.started_at = datetime.utcnow()
+        self.update_activity()
+
     def is_active(self) -> bool:
         """检查会话是否仍处于活动状态。"""
         return self.status in {
-            SessionStatus.PREPARING,
+            SessionStatus.RUNNING,
             SessionStatus.BUILDING_PROMPT,
             SessionStatus.LAUNCHING,
             SessionStatus.INITIALIZING,
-            SessionStatus.RUNNING,
         }
 
     def to_dict(self) -> dict[str, Any]:

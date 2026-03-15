@@ -382,9 +382,9 @@ class TestPromptBuilder:
     def test_conditional_rendering(self):
         """Test conditional logic in templates."""
         template = """Issue: {{title}}
-{{#if blockers}}
-Blocked by: {{#each blockers}}{{this}} {{/each}}
-{{/if}}"""
+{% if blockers %}
+Blocked by: {% for blocker in blockers %}{{ blocker.identifier or blocker }} {% endfor %}
+{% endif %}"""
         
         builder = PromptBuilder(template=template)
         

@@ -360,7 +360,7 @@ class TestRetryEntry:
             issue_id="test-1",
             identifier="TEST-1",
             attempt=2,
-            scheduled_at=datetime.now(),
+            scheduled_at=datetime.utcnow(),
             delay_seconds=60,
         )
         
@@ -374,7 +374,7 @@ class TestRetryEntry:
             issue_id="test-1",
             identifier="TEST-1",
             attempt=1,
-            scheduled_at=datetime.now() - timedelta(seconds=10),
+            scheduled_at=datetime.utcnow() - timedelta(seconds=10),
             delay_seconds=5,
         )
         
@@ -386,7 +386,7 @@ class TestRetryEntry:
             issue_id="test-1",
             identifier="TEST-1",
             attempt=1,
-            scheduled_at=datetime.now(),
+            scheduled_at=datetime.utcnow(),
             delay_seconds=3600,
         )
         
@@ -426,12 +426,12 @@ class TestRunningEntry:
         entry = RunningEntry(
             issue=issue,
             session_state=session,
-            started_at=datetime.now(),
+            started_at=datetime.utcnow(),
         )
         
         assert entry.issue.id == "test-1"
         assert entry.session_state == session
-        assert entry.attempt is None
+        assert entry.retry_attempt is None
     
     def test_running_entry_with_attempt(self):
         """Test running entry with retry attempt."""
@@ -449,8 +449,8 @@ class TestRunningEntry:
         entry = RunningEntry(
             issue=issue,
             session_state=session,
-            started_at=datetime.now(),
-            attempt=2,
+            started_at=datetime.utcnow(),
+            retry_attempt=2,
         )
         
-        assert entry.attempt == 2
+        assert entry.retry_attempt == 2

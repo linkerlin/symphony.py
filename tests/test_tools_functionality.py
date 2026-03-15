@@ -5,6 +5,7 @@ Tests tool execution with real filesystem and shell operations.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -12,6 +13,11 @@ import pytest
 
 from symphony.agents.tools.file_tools import list_directory, read_file, write_file
 from symphony.agents.tools.shell_tool import execute_command
+
+
+def _normalize_path_for_test(path: Path | str) -> Path:
+    """规范化路径以进行比较，处理 macOS /private 前缀。"""
+    return Path(os.path.realpath(str(path)))
 
 
 class TestFileTools:
@@ -27,7 +33,8 @@ class TestFileTools:
             
             assert result["success"] is True
             assert result["content"] == "Hello, World!"
-            assert result["path"] == str(test_file)
+            # 使用规范化路径进行比较，处理 macOS /private 前缀
+            assert _normalize_path_for_test(result["path"]) == _normalize_path_for_test(test_file)
             assert result["size"] == 13
     
     def test_read_nonexistent_file(self):

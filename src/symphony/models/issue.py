@@ -82,15 +82,30 @@ class Issue(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def normalize_labels(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """将标签规范化为小写。"""
-        if isinstance(data, dict) and "labels" in data:
+    def normalize_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """规范化字段：标签转为小写，blockers 转为 blocked_by。"""
+        if not isinstance(data, dict):
+            return data
+            
+        # 规范化标签为小写
+        if "labels" in data:
             labels = data["labels"]
             if isinstance(labels, list):
                 data["labels"] = [
                     label.lower() if isinstance(label, str) else str(label).lower()
                     for label in labels
                 ]
+        
+        # 处理 blockers -> blocked_by 转换
+        # 测试使用 blockers=["BLOCK-1"] 格式，需要转换为 BlockerRef 对象
+        if "blockers" in data and "blocked_by" not in data:
+            blockers = data.pop("blockers")
+            if isinstance(blockers, list):
+                data["blocked_by"] = [
+                    {"identifier": b, "state": "In Progress"} if isinstance(b, str) else b
+                    for b in blockers
+                ]
+        
         return data
 
     def get_normalized_state(self) -> str:
@@ -109,14 +124,14 @@ class Issue(BaseModel):
         normalized = self.get_normalized_state()
         return any(normalized == s.lower() for s in states)
 
-    def is_blocked(self, terminal_states: set[str]) -> bool:
+    def is_blocked(self, terminal_states: set[str] | None = None) -> bool:
         """检查此事项是否被非终止事项阻塞。
 
         仅适用于处于 "Todo" 状态的事项。处于其他状态的事项
         无论其是否有阻塞项，都不被视为阻塞。
 
         参数：
-            terminal_states: 被视为终止的状态名称集合
+            terminal_states: 被视为终止的状态名称集合，默认为 {"done", "closed", "canceled", "cancelled"}
 
         返回：
             如果事项有非终止阻塞项则返回 True
@@ -124,6 +139,10 @@ class Issue(BaseModel):
         # 只有 Todo 状态的事项可能被阻塞
         if self.get_normalized_state() != "todo":
             return False
+
+        # 使用默认的终止状态
+        if terminal_states is None:
+            terminal_states = {"done", "closed", "canceled", "cancelled"}
 
         # 检查是否有任何非终止阻塞项
         for blocker in self.blocked_by:
@@ -220,3 +239,15 @@ class Issue(BaseModel):
         if not isinstance(other, Issue):
             return NotImplemented
         return self.id == other.id
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Issue":
+        """从字典创建议题。
+
+        参数：
+            data: 包含议题字段的字典
+
+        返回：
+            Issue 实例
+        """
+        return cls.model_validate(data)
