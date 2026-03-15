@@ -1,4 +1,4 @@
-"""Shell command execution tool for Agent."""
+"""Agent 的 Shell 命令执行工具。"""
 
 import asyncio
 from pathlib import Path
@@ -11,19 +11,19 @@ async def execute_command(
     timeout: int = 60,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Execute a shell command in the workspace.
+    """在工作区中执行 Shell 命令。
 
     Args:
-        command: Shell command to execute
-        _workspace: Workspace directory (injected by agent)
-        timeout: Command timeout in seconds
+        command: 要执行的 Shell 命令
+        _workspace: 工作区目录（由 Agent 注入）
+        timeout: 命令超时时间（秒）
 
     Returns:
-        Dict with stdout, stderr, and return code
+        包含 stdout、stderr 和返回码的字典
     """
     workspace = Path(_workspace).resolve()
 
-    # Run command
+    # 运行命令
     proc = await asyncio.create_subprocess_shell(
         command,
         cwd=str(workspace),

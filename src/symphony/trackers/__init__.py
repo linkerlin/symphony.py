@@ -1,6 +1,6 @@
-"""Issue tracker adapters for Symphony.
+"""Symphony 的问题跟踪器适配器。
 
-Provides interfaces and implementations for different issue trackers.
+为不同的问题跟踪器提供接口和实现。
 """
 
 from symphony.trackers.base import BaseTracker, TrackerError

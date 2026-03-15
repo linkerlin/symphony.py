@@ -1,6 +1,6 @@
-"""Data models for Linear Issues.
+"""Linear 事项的数据模型。
 
-Provides Pydantic models for normalized issue representation.
+提供用于规范化事项表示的 Pydantic 模型。
 """
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class BlockerRef(BaseModel):
-    """Reference to a blocking issue.
+    """阻塞事项的引用。
 
-    Attributes:
-        id: Linear issue ID
-        identifier: Human-readable issue identifier (e.g., "ABC-123")
-        state: Current state of the blocking issue
+    属性：
+        id: Linear 事项 ID
+        identifier: 人类可读的标识符（例如 "ABC-123"）
+        state: 阻塞事项的当前状态
     """
 
     id: str | None = None
@@ -25,13 +25,13 @@ class BlockerRef(BaseModel):
     state: str | None = None
 
     def is_terminal(self, terminal_states: set[str]) -> bool:
-        """Check if this blocker is in a terminal state.
+        """检查此阻塞项是否处于终止状态。
 
-        Args:
-            terminal_states: Set of state names considered terminal
+        参数：
+            terminal_states: 被视为终止的状态名称集合
 
-        Returns:
-            True if blocker is in a terminal state
+        返回：
+            如果阻塞项处于终止状态则返回 True
         """
         if self.state is None:
             return False
@@ -39,26 +39,26 @@ class BlockerRef(BaseModel):
 
 
 class Issue(BaseModel):
-    """Normalized Linear issue representation.
+    """规范化的 Linear 事项表示。
 
-    This model represents a Linear issue in a normalized form suitable
-    for orchestration, prompt rendering, and observability.
+    此模型以规范化形式表示 Linear 事项，适用于
+    编排、提示渲染和可观测性。
 
-    Attributes:
-        id: Stable tracker-internal ID
-        identifier: Human-readable ticket key (e.g., "ABC-123")
-        title: Issue title
-        description: Issue description (may be None)
-        priority: Priority number (lower is higher priority, 1-4 typical)
-        state: Current tracker state name
-        branch_name: Tracker-provided branch metadata
-        url: Issue URL
-        assignee_id: ID of assigned user
-        labels: List of label names (normalized to lowercase)
-        blocked_by: List of blocking issue references
-        assigned_to_worker: Whether this issue is assigned to current worker
-        created_at: Creation timestamp
-        updated_at: Last update timestamp
+    属性：
+        id: 稳定的跟踪器内部 ID
+        identifier: 人类可读的工单键（例如 "ABC-123"）
+        title: 事项标题
+        description: 事项描述（可能为 None）
+        priority: 优先级数字（数值越小优先级越高，通常为 1-4）
+        state: 当前跟踪器状态名称
+        branch_name: 跟踪器提供的分支元数据
+        url: 事项 URL
+        assignee_id: 被分配用户的 ID
+        labels: 标签名称列表（规范化为小写）
+        blocked_by: 阻塞事项引用列表
+        assigned_to_worker: 此事项是否已分配给当前工作器
+        created_at: 创建时间戳
+        updated_at: 最后更新时间戳
     """
 
     id: str
@@ -77,13 +77,13 @@ class Issue(BaseModel):
     updated_at: datetime | None = None
 
     model_config = {
-        "frozen": False,  # Allow mutation for state updates
+        "frozen": False,  # 允许状态更新时进行修改
     }
 
     @model_validator(mode="before")
     @classmethod
     def normalize_labels(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """Normalize labels to lowercase."""
+        """将标签规范化为小写。"""
         if isinstance(data, dict) and "labels" in data:
             labels = data["labels"]
             if isinstance(labels, list):
@@ -94,38 +94,38 @@ class Issue(BaseModel):
         return data
 
     def get_normalized_state(self) -> str:
-        """Get lowercase normalized state name."""
+        """获取小写规范化的状态名称。"""
         return self.state.lower()
 
     def is_in_state(self, states: list[str] | set[str]) -> bool:
-        """Check if issue is in any of the given states.
+        """检查事项是否处于任一给定状态。
 
-        Args:
-            states: List or set of state names to check
+        参数：
+            states: 要检查的状态名称列表或集合
 
-        Returns:
-            True if issue state matches any of the given states
+        返回：
+            如果事项状态匹配任一给定状态则返回 True
         """
         normalized = self.get_normalized_state()
         return any(normalized == s.lower() for s in states)
 
     def is_blocked(self, terminal_states: set[str]) -> bool:
-        """Check if this issue is blocked by non-terminal issues.
+        """检查此事项是否被非终止事项阻塞。
 
-        Only applies to issues in "Todo" state. Issues in other states
-        are not considered blocked regardless of their blockers.
+        仅适用于处于 "Todo" 状态的事项。处于其他状态的事项
+        无论其是否有阻塞项，都不被视为阻塞。
 
-        Args:
-            terminal_states: Set of state names considered terminal
+        参数：
+            terminal_states: 被视为终止的状态名称集合
 
-        Returns:
-            True if issue has non-terminal blockers
+        返回：
+            如果事项有非终止阻塞项则返回 True
         """
-        # Only Todo issues can be blocked
+        # 只有 Todo 状态的事项可能被阻塞
         if self.get_normalized_state() != "todo":
             return False
 
-        # Check for any non-terminal blocker
+        # 检查是否有任何非终止阻塞项
         for blocker in self.blocked_by:
             if not blocker.is_terminal(terminal_states):
                 return True
@@ -137,53 +137,53 @@ class Issue(BaseModel):
         active_states: set[str],
         terminal_states: set[str],
     ) -> bool:
-        """Check if this issue is eligible for dispatch.
+        """检查此事项是否有资格被分派。
 
-        An issue is eligible if:
-        - It has all required fields (id, identifier, title, state)
-        - Its state is in active_states and not in terminal_states
-        - It's not blocked by non-terminal issues (if in Todo state)
+        当满足以下条件时，事项有资格被分派：
+        - 具有所有必需字段（id、identifier、title、state）
+        - 其状态在 active_states 中且不在 terminal_states 中
+        - 未被非终止事项阻塞（如果处于 Todo 状态）
 
-        Args:
-            active_states: Set of active state names
-            terminal_states: Set of terminal state names
+        参数：
+            active_states: 活跃状态名称集合
+            terminal_states: 终止状态名称集合
 
-        Returns:
-            True if issue can be dispatched
+        返回：
+            如果事项可以被分派则返回 True
         """
-        # Check required fields
+        # 检查必需字段
         if not all([self.id, self.identifier, self.title, self.state]):
             return False
 
         normalized_state = self.get_normalized_state()
 
-        # Check state is active
+        # 检查状态是否为活跃状态
         if normalized_state not in {s.lower() for s in active_states}:
             return False
 
-        # Check not terminal
+        # 检查不是终止状态
         if normalized_state in {s.lower() for s in terminal_states}:
             return False
 
-        # Check not blocked
+        # 检查未被阻塞
         if self.is_blocked(terminal_states):
             return False
 
         return True
 
     def get_context_string(self) -> str:
-        """Get a short context string for logging.
+        """获取用于日志记录的简短上下文字符串。
 
-        Returns:
-            String like "issue_id=abc issue_identifier=ABC-123"
+        返回：
+            形如 "issue_id=abc issue_identifier=ABC-123" 的字符串
         """
         return f"issue_id={self.id} issue_identifier={self.identifier}"
 
     def to_prompt_dict(self) -> dict[str, Any]:
-        """Convert to dictionary suitable for prompt template rendering.
+        """转换为适合提示模板渲染的字典。
 
-        Returns:
-            Dictionary with all issue fields as strings
+        返回：
+            包含所有事项字段作为字符串的字典
         """
         return {
             "id": self.id,
@@ -208,15 +208,15 @@ class Issue(BaseModel):
         }
 
     def __repr__(self) -> str:
-        """String representation of Issue."""
+        """事项的字符串表示。"""
         return f"Issue({self.get_context_string()} state={self.state})"
 
     def __hash__(self) -> int:
-        """Hash based on issue ID."""
+        """基于事项 ID 的哈希。"""
         return hash(self.id)
 
     def __eq__(self, other: object) -> bool:
-        """Equality based on issue ID."""
+        """基于事项 ID 的相等性比较。"""
         if not isinstance(other, Issue):
             return NotImplemented
         return self.id == other.id

@@ -1,6 +1,6 @@
-"""Path safety validation for workspaces.
+"""工作空间的路径安全验证。
 
-Ensures workspace paths stay within configured root directory.
+确保工作空间路径始终位于配置的根目录内。
 """
 
 from __future__ import annotations
@@ -10,42 +10,42 @@ from pathlib import Path
 
 
 class PathSafetyError(Exception):
-    """Raised when a path fails safety checks."""
+    """当路径未通过安全检查时抛出。"""
 
     pass
 
 
 def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path:
-    """Resolve a file path relative to workspace with safety checks.
+    """解析相对于工作空间的路径，并进行安全检查。
     
-    Args:
-        file_path: Path to resolve (relative or absolute)
-        workspace: Workspace root directory (optional)
+    参数:
+        file_path: 要解析的路径（相对或绝对）
+        workspace: 工作空间根目录（可选）
         
-    Returns:
-        Resolved Path object
+    返回:
+        解析后的 Path 对象
         
-    Raises:
-        PathSafetyError: If path escapes workspace or contains traversal
+    抛出:
+        PathSafetyError: 如果路径逸出工作空间或包含路径遍历
     """
-    # Handle absolute paths
+    # 处理绝对路径
     path = Path(file_path)
     
     if workspace is None:
-        # No workspace specified, use current directory
+        # 未指定工作空间，使用当前目录
         return path.resolve()
     
     workspace_path = Path(workspace).expanduser().resolve()
     
-    # Check for path traversal attempts
+    # 检查路径遍历尝试
     if PathSafety.check_path_traversal(file_path):
         raise PathSafetyError(
             f"Path traversal detected: {file_path}"
         )
     
-    # Resolve relative to workspace
+    # 解析相对于工作空间的路径
     if path.is_absolute():
-        # If absolute, check it's within workspace
+        # 如果是绝对路径，检查是否在工作空间内
         try:
             path.relative_to(workspace_path)
             return path
@@ -54,10 +54,10 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
                 f"Absolute path {file_path} is outside workspace {workspace_path}"
             )
     else:
-        # Relative path - join with workspace
+        # 相对路径 - 与工作空间拼接
         full_path = (workspace_path / path).resolve()
         
-        # Verify resolved path is still within workspace
+        # 验证解析后的路径仍在工作空间内
         try:
             full_path.relative_to(workspace_path)
         except ValueError:
@@ -65,7 +65,7 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
                 f"Resolved path {full_path} escapes workspace {workspace_path}"
             )
         
-        # Check for symlink escapes
+        # 检查符号链接逸出
         if full_path.exists() and full_path.is_symlink():
             real_path = full_path.resolve()
             try:
@@ -79,36 +79,36 @@ def resolve_workspace_path(file_path: str, workspace: str | None = None) -> Path
 
 
 class PathSafety:
-    """Validates workspace path safety.
+    """验证工作空间路径安全。
 
-    Ensures that:
-    1. Workspace paths stay within the configured root
-    2. Path components are sanitized
-    3. Symlink escapes are detected
+    确保：
+    1. 工作空间路径位于配置的根目录内
+    2. 路径组件已清理
+    3. 检测到符号链接逸出
     """
 
-    # Characters allowed in workspace directory names
+    # 工作空间目录名中允许的字符
     SAFE_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 
     @classmethod
     def sanitize_identifier(cls, identifier: str) -> str:
-        """Sanitize an issue identifier for use as directory name.
+        """清理 Issue 标识符，使其可作为目录名使用。
 
-        Replaces any character not in [A-Za-z0-9._-] with underscore.
+        将任何不在 [A-Za-z0-9._-] 范围内的字符替换为下划线。
 
-        Args:
-            identifier: Raw issue identifier
+        参数:
+            identifier: 原始 Issue 标识符
 
-        Returns:
-            Sanitized identifier safe for filesystem use
+        返回:
+            适合文件系统使用的已清理标识符
         """
         if not identifier:
             return "unknown"
 
-        # Replace unsafe characters with underscore
+        # 将不安全的字符替换为下划线
         sanitized = re.sub(r"[^a-zA-Z0-9._-]", "_", identifier)
 
-        # Remove leading/trailing dots (could be hidden files)
+        # 移除首尾的点（可能是隐藏文件）
         sanitized = sanitized.strip(".")
 
         if not sanitized:
@@ -122,28 +122,28 @@ class PathSafety:
         workspace_path: str | Path,
         root_path: str | Path,
     ) -> Path:
-        """Validate that workspace path is within root.
+        """验证工作空间路径是否在根目录内。
 
-        Args:
-            workspace_path: Path to validate
-            root_path: Root directory that must contain workspace
+        参数:
+            workspace_path: 要验证的路径
+            root_path: 必须包含工作空间的根目录
 
-        Returns:
-            Resolved Path object
+        返回:
+            解析后的 Path 对象
 
-        Raises:
-            PathSafetyError: If path is outside root or invalid
+        抛出:
+            PathSafetyError: 如果路径在根目录外或无效
         """
         root = Path(root_path).expanduser().resolve()
         workspace = Path(workspace_path).expanduser().resolve()
 
-        # Check workspace equals root (not allowed)
+        # 检查工作空间是否等于根目录（不允许）
         if workspace == root:
             raise PathSafetyError(
                 f"Workspace cannot be the same as root: {workspace}"
             )
 
-        # Check workspace is under root
+        # 检查工作空间是否在根目录下
         try:
             workspace.relative_to(root)
         except ValueError:
@@ -159,14 +159,14 @@ class PathSafety:
         identifier: str,
         root_path: str | Path,
     ) -> Path:
-        """Get safe workspace path for an issue.
+        """获取 Issue 的安全工作空间路径。
 
-        Args:
-            identifier: Issue identifier
-            root_path: Workspace root directory
+        参数:
+            identifier: Issue 标识符
+            root_path: 工作空间根目录
 
-        Returns:
-            Safe workspace path
+        返回:
+            安全的工作空间路径
         """
         root = Path(root_path).expanduser().resolve()
         safe_id = cls.sanitize_identifier(identifier)
@@ -174,13 +174,13 @@ class PathSafety:
 
     @classmethod
     def is_safe_path_component(cls, name: str) -> bool:
-        """Check if a path component is safe.
+        """检查路径组件是否安全。
 
-        Args:
-            name: Path component to check
+        参数:
+            name: 要检查的路径组件
 
-        Returns:
-            True if safe for filesystem use
+        返回:
+            如果适合文件系统使用则返回 True
         """
         if not name:
             return False
@@ -192,13 +192,13 @@ class PathSafety:
 
     @classmethod
     def check_path_traversal(cls, path: str) -> bool:
-        """Check if path contains traversal attempts.
+        """检查路径是否包含遍历尝试。
 
-        Args:
-            path: Path to check
+        参数:
+            path: 要检查的路径
 
-        Returns:
-            True if path contains traversal attempts
+        返回:
+            如果路径包含遍历尝试则返回 True
         """
         normalized = path.replace("\\", "/")
         return ".." in normalized or normalized.startswith("/")

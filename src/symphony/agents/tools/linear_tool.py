@@ -1,6 +1,6 @@
-"""Linear GraphQL tool for Agent.
+"""Agent 的 Linear GraphQL 工具。
 
-Allows agent to interact with Linear API.
+允许 Agent 与 Linear API 交互。
 """
 
 from __future__ import annotations
@@ -17,22 +17,22 @@ async def linear_graphql(
     _workspace: str = "",
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Execute a GraphQL query against Linear.
+    """对 Linear 执行 GraphQL 查询。
 
-    This tool allows the agent to interact with Linear, such as:
-    - Adding comments to issues
-    - Updating issue state
-    - Querying issue information
-    - Creating new issues
+    此工具允许 Agent 与 Linear 交互，例如：
+    - 为问题添加评论
+    - 更新问题状态
+    - 查询问题信息
+    - 创建新问题
 
     Args:
-        query: GraphQL query or mutation string
-        variables: Optional variables for the query
-        _workspace: Workspace directory (injected by agent)
-        **kwargs: Additional arguments (may include api_key from config)
+        query: GraphQL 查询或变更字符串
+        variables: 查询的可选变量
+        _workspace: 工作区目录（由 Agent 注入）
+        **kwargs: 附加参数（可能包含来自配置的 api_key）
 
     Returns:
-        GraphQL response data
+        GraphQL 响应数据
 
     Example:
         >>> result = await linear_graphql(
@@ -40,10 +40,10 @@ async def linear_graphql(
         ...     api_key="lin_api_..."
         ... )
     """
-    # Get API key from kwargs or environment
+    # 从 kwargs 或环境变量获取 API 密钥
     api_key = kwargs.get("api_key") or kwargs.get("linear_api_key")
     if not api_key:
-        # Try to get from environment
+        # 尝试从环境变量获取
         import os
         api_key = os.environ.get("LINEAR_API_KEY")
 
@@ -104,15 +104,15 @@ async def add_comment(
     body: str,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Add a comment to a Linear issue.
+    """为 Linear 问题添加评论。
 
     Args:
-        issue_id: Linear issue ID
-        body: Comment text (supports Markdown)
-        **kwargs: Additional arguments
+        issue_id: Linear 问题 ID
+        body: 评论文本（支持 Markdown）
+        **kwargs: 附加参数
 
     Returns:
-        Result dict with success status
+        包含成功状态的结果字典
     """
     query = """
     mutation AddComment($issueId: String!, $body: String!) {
@@ -148,15 +148,15 @@ async def update_issue_state(
     state_id: str,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Update the state of a Linear issue.
+    """更新 Linear 问题的状态。
 
     Args:
-        issue_id: Linear issue ID
-        state_id: State ID to transition to
-        **kwargs: Additional arguments
+        issue_id: Linear 问题 ID
+        state_id: 要转换到的状态 ID
+        **kwargs: 附加参数
 
     Returns:
-        Result dict with success status
+        包含成功状态的结果字典
     """
     query = """
     mutation UpdateIssueState($id: String!, $stateId: String!) {
@@ -196,14 +196,14 @@ async def get_issue(
     issue_id: str,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Get details of a Linear issue.
+    """获取 Linear 问题的详细信息。
 
     Args:
-        issue_id: Linear issue ID
-        **kwargs: Additional arguments
+        issue_id: Linear 问题 ID
+        **kwargs: 附加参数
 
     Returns:
-        Issue details dict
+        问题详细信息字典
     """
     query = """
     query GetIssue($id: String!) {

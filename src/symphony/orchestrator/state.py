@@ -1,6 +1,6 @@
-"""State management for the Orchestrator.
+"""编排器的状态管理。
 
-Defines data structures for tracking running and retrying issues.
+定义用于跟踪运行中和重试中问题的数据结构。
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from symphony.models.session import LLMTotals, SessionState
 
 @dataclass
 class RunningEntry:
-    """Entry for a currently running issue."""
+    """当前运行中问题的条目。"""
 
     task: asyncio.Task
     issue: Issue
@@ -26,7 +26,7 @@ class RunningEntry:
     retry_attempt: int = 0
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典以进行序列化。"""
         return {
             "issue": self.issue.to_prompt_dict(),
             "session": self.session_state.to_dict(),
@@ -38,7 +38,7 @@ class RunningEntry:
 
 @dataclass
 class RetryEntry:
-    """Entry for an issue scheduled for retry."""
+    """已安排重试的问题条目。"""
 
     issue_id: str
     identifier: str
@@ -52,14 +52,14 @@ class RetryEntry:
 
     @property
     def due_in_seconds(self) -> float:
-        """Get seconds until retry is due."""
+        """获取距离重试到期的秒数。"""
         now = datetime.utcnow()
         if self.due_at <= now:
             return 0.0
         return (self.due_at - now).total_seconds()
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for serialization."""
+        """转换为字典以进行序列化。"""
         return {
             "issue_id": self.issue_id,
             "identifier": self.identifier,
@@ -74,57 +74,57 @@ class RetryEntry:
 
 @dataclass
 class OrchestratorState:
-    """Complete state of the orchestrator.
+    """编排器的完整状态。
 
-    This class holds all mutable state that the orchestrator manages.
+    此类保存编排器管理的所有可变状态。
     """
 
-    # Configuration (can be updated dynamically)
+    # 配置（可动态更新）
     poll_interval_ms: int = 30000
     max_concurrent_agents: int = 10
     max_retry_backoff_ms: int = 300000
 
-    # Running and retrying issues
+    # 运行中和重试中的问题
     running: dict[str, RunningEntry] = field(default_factory=dict)
     claimed: set[str] = field(default_factory=set)
     retry_attempts: dict[str, RetryEntry] = field(default_factory=dict)
     completed: set[str] = field(default_factory=set)
 
-    # Metrics (LLM provider agnostic)
+    # 指标（与 LLM 提供商无关）
     llm_totals: LLMTotals = field(default_factory=LLMTotals)
     rate_limits: dict[str, Any] | None = None
 
-    # Internal
+    # 内部
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     @property
     def available_slots(self) -> int:
-        """Get number of available agent slots."""
+        """获取可用的智能体槽位数。"""
         return max(0, self.max_concurrent_agents - len(self.running))
 
     @property
     def is_at_capacity(self) -> bool:
-        """Check if at maximum concurrency."""
+        """检查是否已达到最大并发数。"""
         return len(self.running) >= self.max_concurrent_agents
 
     def get_running_issue_ids(self) -> set[str]:
-        """Get set of currently running issue IDs."""
+        """获取当前运行中的问题 ID 集合。"""
         return set(self.running.keys())
 
     def is_issue_claimed(self, issue_id: str) -> bool:
-        """Check if an issue is claimed (running or retrying)."""
+        """检查问题是否已被认领（运行中或重试中）。"""
         return issue_id in self.claimed
 
     def is_issue_running(self, issue_id: str) -> bool:
-        """Check if an issue is currently running."""
+        """检查问题是否正在运行。"""
         return issue_id in self.running
 
     def get_retry_entry(self, issue_id: str) -> RetryEntry | None:
-        """Get retry entry for an issue if it exists."""
+        """获取问题的重试条目（如果存在）。"""
         return self.retry_attempts.get(issue_id)
 
     def get_running_count_for_state(self, state_name: str) -> int:
-        """Count running issues in a specific state."""
+        """统计特定状态中运行的问题数。"""
         normalized = state_name.lower()
         return sum(
             1
@@ -133,7 +133,7 @@ class OrchestratorState:
         )
 
     def to_snapshot(self) -> dict[str, Any]:
-        """Create a snapshot of current state."""
+        """创建当前状态的快照。"""
         return {
             "poll_interval_ms": self.poll_interval_ms,
             "max_concurrent_agents": self.max_concurrent_agents,

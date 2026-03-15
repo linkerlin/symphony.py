@@ -1,4 +1,4 @@
-"""Validate command for Symphony - Check configuration files."""
+"""Symphony 的 validate 命令 - 检查配置文件。"""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ console = Console()
 
 
 def validate_yaml_frontmatter(content: str) -> tuple[bool, list[str]]:
-    """Validate YAML frontmatter syntax."""
+    """验证 YAML 前置元数据语法。"""
     errors = []
     
     if not content.startswith("---"):
@@ -50,23 +50,23 @@ def validate_yaml_frontmatter(content: str) -> tuple[bool, list[str]]:
 
 
 def validate_symphony_config(config: dict) -> tuple[bool, list[dict]]:
-    """Validate symphony configuration structure."""
+    """验证 Symphony 配置结构。"""
     errors = []
     warnings = []
     
     symphony = config.get("symphony", {})
     
-    # Check version
+    # 检查版本
     version = symphony.get("version")
     if not version:
         errors.append({"type": "error", "message": "Missing 'symphony.version'"})
     elif version != "1.0":
         warnings.append({"type": "warning", "message": f"Unknown version: {version}"})
     
-    # Check settings
+    # 检查设置
     settings = symphony.get("settings", {})
     
-    # LLM settings
+    # LLM 设置
     llm = settings.get("llm", {})
     provider = llm.get("provider", "openai")
     valid_providers = ["openai", "anthropic", "deepseek", "gemini", "azure"]
@@ -79,7 +79,7 @@ def validate_symphony_config(config: dict) -> tuple[bool, list[dict]]:
     if not llm.get("model"):
         warnings.append({"type": "warning", "message": "LLM model not specified, will use default"})
     
-    # Tracker settings
+    # Tracker 设置
     tracker = settings.get("tracker", {})
     if tracker.get("kind") != "linear":
         errors.append({"type": "error", "message": "Only 'linear' tracker is currently supported"})
@@ -87,12 +87,12 @@ def validate_symphony_config(config: dict) -> tuple[bool, list[dict]]:
     if not tracker.get("project_slug"):
         errors.append({"type": "error", "message": "Missing 'tracker.project_slug'"})
     
-    # Workspace settings
+    # Workspace 设置
     workspace = settings.get("workspace", {})
     if not workspace.get("root"):
         warnings.append({"type": "warning", "message": "Workspace root not specified, will use default"})
     
-    # Check prompt template
+    # 检查提示模板
     prompt = symphony.get("prompt")
     if not prompt:
         warnings.append({"type": "warning", "message": "No custom prompt template defined, will use default"})
@@ -101,7 +101,7 @@ def validate_symphony_config(config: dict) -> tuple[bool, list[dict]]:
 
 
 def validate_env_file(env_path: Path) -> tuple[bool, list[dict]]:
-    """Validate environment file."""
+    """验证环境文件。"""
     issues = []
     
     if not env_path.exists():
@@ -109,14 +109,14 @@ def validate_env_file(env_path: Path) -> tuple[bool, list[dict]]:
             "type": "warning",
             "message": f"Environment file not found: {env_path}"
         })
-        return True, issues  # Not a fatal error
+        return True, issues  # 不是致命错误
     
     content = env_path.read_text()
     
-    # Check for required variables based on detected provider
+    # 根据检测到的提供商检查必需变量
     required_vars = []
     
-    # Detect which provider is being used
+    # 检测正在使用的提供商
     if "OPENAI_API_KEY=" in content and not "OPENAI_API_KEY=\n" in content:
         if "OPENAI_API_KEY=your_" not in content and "OPENAI_API_KEY=$" not in content:
             required_vars.append("OPENAI_API_KEY")
@@ -161,9 +161,9 @@ def validate_command(
     env_file: Path | None,
     strict: bool,
 ) -> None:
-    """Validate Symphony configuration files.
+    """验证 Symphony 配置文件。
     
-    Checks WORKFLOW.md syntax, structure, and environment configuration.
+    检查 WORKFLOW.md 语法、结构和环境配置。
     """
     console.print(Panel.fit(
         f"[bold cyan]🔍 Validating Symphony Configuration[/bold cyan]\n"
@@ -173,17 +173,17 @@ def validate_command(
     
     all_ok = True
     
-    # Validate workflow file
+    # 验证工作流文件
     console.print(f"\n[bold]Checking {workflow_file.name}...[/bold]")
     
     content = workflow_file.read_text()
     
-    # YAML frontmatter validation
+    # YAML 前置元数据验证
     valid, errors = validate_yaml_frontmatter(content)
     if valid:
         console.print("  [green]✓[/green] YAML frontmatter syntax valid")
         
-        # Parse and validate structure
+        # 解析并验证结构
         parts = content.split("---", 2)
         yaml_content = yaml.safe_load(parts[1])
         
@@ -204,7 +204,7 @@ def validate_command(
             console.print(f"  [red]✗[/red] {error}")
         all_ok = False
     
-    # Validate environment file
+    # 验证环境文件
     if env_file is None:
         env_file = workflow_file.parent / ".env"
     
@@ -228,7 +228,7 @@ def validate_command(
     else:
         console.print(f"  [yellow]⚠[/yellow] Environment file not found")
     
-    # Summary
+    # 摘要
     console.print()
     if all_ok:
         console.print(Panel(

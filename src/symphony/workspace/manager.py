@@ -1,6 +1,6 @@
-"""Workspace manager for Symphony.
+"""Symphony 的工作空间管理器。
 
-Handles creation, validation, and lifecycle of per-issue workspaces.
+处理每个 Issue 的工作空间的创建、验证和生命周期管理。
 """
 
 from __future__ import annotations
@@ -19,18 +19,18 @@ logger = logging.getLogger(__name__)
 
 
 class WorkspaceError(Exception):
-    """Raised when workspace operation fails."""
+    """当工作空间操作失败时抛出。"""
 
     pass
 
 
 class WorkspaceManager:
-    """Manages per-issue workspaces.
+    """管理每个 Issue 的工作空间。
 
-    Responsible for:
-    - Creating and validating workspace directories
-    - Running lifecycle hooks
-    - Cleaning up workspaces
+    职责包括：
+    - 创建和验证工作空间目录
+    - 运行生命周期钩子
+    - 清理工作空间
     """
 
     def __init__(
@@ -39,28 +39,28 @@ class WorkspaceManager:
         hooks: dict[str, str | None] | None = None,
         hook_timeout_ms: int = 60000,
     ) -> None:
-        """Initialize workspace manager.
+        """初始化工作空间管理器。
 
-        Args:
-            root: Root directory for all workspaces
-            hooks: Dict with hook scripts (after_create, before_run, after_run, before_remove)
-            hook_timeout_ms: Timeout for hook execution
+        参数:
+            root: 所有工作空间的根目录
+            hooks: 钩子脚本字典（after_create、before_run、after_run、before_remove）
+            hook_timeout_ms: 钩子执行的超时时间（毫秒）
         """
         self.root = Path(root).expanduser().resolve()
         self.hooks = hooks or {}
         self.hook_timeout_ms = hook_timeout_ms
 
-        # Ensure root exists
+        # 确保根目录存在
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _get_workspace_path(self, identifier: str) -> Path:
-        """Get workspace path for an issue identifier.
+        """获取 Issue 标识符对应的工作空间路径。
 
-        Args:
-            identifier: Issue identifier
+        参数:
+            identifier: Issue 标识符
 
-        Returns:
-            Path to workspace directory
+        返回:
+            工作空间目录的路径
         """
         return PathSafety.get_workspace_path(identifier, self.root)
 
@@ -68,21 +68,21 @@ class WorkspaceManager:
         self,
         issue: Issue,
     ) -> tuple[Path, bool]:
-        """Create workspace for an issue.
+        """为 Issue 创建工作空间。
 
-        Args:
-            issue: Issue to create workspace for
+        参数:
+            issue: 要创建工作空间的 Issue
 
-        Returns:
-            Tuple of (workspace_path, created_new)
-            created_new is True if directory was newly created
+        返回:
+            (workspace_path, created_new) 元组
+            如果目录是新创建的，则 created_new 为 True
 
-        Raises:
-            WorkspaceError: If workspace creation fails
+        抛出:
+            WorkspaceError: 如果工作空间创建失败
         """
         workspace_path = self._get_workspace_path(issue.identifier)
 
-        # Validate path safety
+        # 验证路径安全性
         try:
             PathSafety.validate_workspace_path(workspace_path, self.root)
         except PathSafetyError as e:
@@ -90,20 +90,20 @@ class WorkspaceManager:
 
         created_new = False
 
-        # Handle existing path
+        # 处理已存在的路径
         if workspace_path.exists():
             if workspace_path.is_dir():
                 logger.debug(f"Reusing existing workspace: {workspace_path}")
                 return workspace_path, False
             else:
-                # Remove non-directory file
+                # 删除非目录文件
                 logger.warning(f"Removing non-directory at workspace path: {workspace_path}")
                 if workspace_path.is_file():
                     workspace_path.unlink()
                 else:
                     shutil.rmtree(workspace_path)
 
-        # Create directory
+        # 创建目录
         try:
             workspace_path.mkdir(parents=True, exist_ok=True)
             created_new = True
@@ -111,7 +111,7 @@ class WorkspaceManager:
         except OSError as e:
             raise WorkspaceError(f"Failed to create workspace: {e}") from e
 
-        # Run after_create hook
+        # 运行 after_create 钩子
         if created_new:
             hook = self.hooks.get("after_create")
             if hook:
@@ -124,14 +124,14 @@ class WorkspaceManager:
         identifier: str,
         run_hook: bool = True,
     ) -> None:
-        """Remove workspace for an issue.
+        """删除 Issue 的工作空间。
 
-        Args:
-            identifier: Issue identifier
-            run_hook: Whether to run before_remove hook
+        参数:
+            identifier: Issue 标识符
+            run_hook: 是否运行 before_remove 钩子
 
-        Raises:
-            WorkspaceError: If removal fails
+        抛出:
+            WorkspaceError: 如果删除失败
         """
         workspace_path = self._get_workspace_path(identifier)
 
@@ -139,13 +139,13 @@ class WorkspaceManager:
             logger.debug(f"Workspace does not exist, nothing to remove: {workspace_path}")
             return
 
-        # Validate path safety
+        # 验证路径安全性
         try:
             PathSafety.validate_workspace_path(workspace_path, self.root)
         except PathSafetyError as e:
             raise WorkspaceError(f"Invalid workspace path: {e}") from e
 
-        # Run before_remove hook
+        # 运行 before_remove 钩子
         if run_hook:
             hook = self.hooks.get("before_remove")
             if hook:
@@ -154,7 +154,7 @@ class WorkspaceManager:
                 except Exception as e:
                     logger.warning(f"before_remove hook failed: {e}")
 
-        # Remove directory
+        # 删除目录
         try:
             shutil.rmtree(workspace_path)
             logger.info(f"Removed workspace: {workspace_path}")
@@ -166,14 +166,14 @@ class WorkspaceManager:
         workspace_path: str | Path,
         issue: Issue,
     ) -> None:
-        """Run before_run hook.
+        """运行 before_run 钩子。
 
-        Args:
-            workspace_path: Path to workspace
-            issue: Issue being processed
+        参数:
+            workspace_path: 工作空间路径
+            issue: 正在处理的 Issue
 
-        Raises:
-            WorkspaceError: If hook fails
+        抛出:
+            WorkspaceError: 如果钩子执行失败
         """
         hook = self.hooks.get("before_run")
         if hook:
@@ -184,14 +184,14 @@ class WorkspaceManager:
         workspace_path: str | Path,
         issue: Issue,
     ) -> None:
-        """Run after_run hook.
+        """运行 after_run 钩子。
 
-        Args:
-            workspace_path: Path to workspace
-            issue: Issue being processed
+        参数:
+            workspace_path: 工作空间路径
+            issue: 正在处理的 Issue
 
-        Note:
-            Hook failures are logged but not raised.
+        说明:
+            钩子失败会被记录但不会抛出异常。
         """
         hook = self.hooks.get("after_run")
         if hook:
@@ -207,16 +207,16 @@ class WorkspaceManager:
         issue: Issue | None,
         hook_name: str,
     ) -> None:
-        """Run a hook script in the workspace.
+        """在工作空间中运行钩子脚本。
 
-        Args:
-            script: Shell script to run
-            workspace_path: Working directory for script
-            issue: Optional issue context
-            hook_name: Name of hook for logging
+        参数:
+            script: 要运行的 shell 脚本
+            workspace_path: 脚本的工作目录
+            issue: 可选的 Issue 上下文
+            hook_name: 用于日志记录的钩子名称
 
-        Raises:
-            WorkspaceError: If hook fails or times out
+        抛出:
+            WorkspaceError: 如果钩子失败或超时
         """
         issue_ctx = issue.get_context_string() if issue else "issue=unknown"
         logger.info(f"Running {hook_name} hook: {issue_ctx} workspace={workspace_path}")
@@ -257,10 +257,10 @@ class WorkspaceManager:
             raise WorkspaceError(f"{hook_name} hook failed: {e}") from e
 
     def list_workspaces(self) -> list[Path]:
-        """List all existing workspace directories.
+        """列出所有现有的工作空间目录。
 
-        Returns:
-            List of workspace paths
+        返回:
+            工作空间路径列表
         """
         if not self.root.exists():
             return []
@@ -274,17 +274,17 @@ class WorkspaceManager:
         self,
         terminal_identifiers: list[str],
     ) -> None:
-        """Remove workspaces for issues in terminal states.
+        """删除处于终止状态的 Issue 的工作空间。
 
-        Args:
-            terminal_identifiers: List of issue identifiers in terminal states
+        参数:
+            terminal_identifiers: 处于终止状态的 Issue 标识符列表
         """
         terminal_set = set(terminal_identifiers)
 
         for workspace in self.list_workspaces():
             if workspace.name in terminal_set:
                 try:
-                    # Run before_remove hook
+                    # 运行 before_remove 钩子
                     hook = self.hooks.get("before_remove")
                     if hook:
                         try:
@@ -292,7 +292,7 @@ class WorkspaceManager:
                         except Exception as e:
                             logger.warning(f"before_remove hook failed: {e}")
 
-                    # Remove workspace
+                    # 删除工作空间
                     shutil.rmtree(workspace)
                     logger.info(f"Cleaned terminal workspace: {workspace}")
                 except Exception as e:

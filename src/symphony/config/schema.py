@@ -1,6 +1,6 @@
-"""Pydantic models for Symphony configuration.
+"""Symphony 配置的 Pydantic 模型。
 
-Defines the configuration schema for all Symphony components.
+定义所有 Symphony 组件的配置模式。
 """
 
 from __future__ import annotations
@@ -14,26 +14,26 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def default_workspace_root() -> str:
-    """Return default workspace root path."""
+    """返回默认工作区根路径。"""
     return str(Path(tempfile.gettempdir()) / "symphony_workspaces")
 
 
 def get_env_or_default(env_var: str, default: str | None = None) -> str | None:
-    """Get value from environment variable or return default."""
+    """从环境变量获取值或返回默认值。"""
     return os.environ.get(env_var, default)
 
 
 class LLMConfig(BaseModel):
-    """Configuration for LLM provider.
+    """LLM 提供商配置。
     
-    Supports multiple providers: openai, anthropic, deepseek, gemini, etc.
-    Configuration can come from environment variables or WORKFLOW.md.
+    支持多个提供商：openai、anthropic、deepseek、gemini 等。
+    配置可以来自环境变量或 WORKFLOW.md。
     
-    Priority for API configuration:
-    1. Explicit config in WORKFLOW.md
-    2. OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL (if provider is openai)
-    3. Provider-specific env vars (ANTHROPIC_API_KEY, etc.)
-    4. Default values
+    API 配置优先级：
+    1. WORKFLOW.md 中的显式配置
+    2. OPENAI_API_KEY、OPENAI_BASE_URL、OPENAI_MODEL（如果提供商是 openai）
+    3. 提供商特定的环境变量（ANTHROPIC_API_KEY 等）
+    4. 默认值
     """
 
     provider: Literal["openai", "anthropic", "deepseek", "gemini", "azure"] = Field(
@@ -76,25 +76,25 @@ class LLMConfig(BaseModel):
 
     @model_validator(mode="after")
     def resolve_from_env(self) -> "LLMConfig":
-        """Resolve API key, base_url, and model from environment variables.
+        """从环境变量解析 API key、base_url 和 model。
         
-        Priority:
-        1. Explicitly set values (not None)
-        2. OPENAI_* environment variables (if provider is openai)
-        3. Provider-specific environment variables
+        优先级：
+        1. 显式设置的值（非 None）
+        2. OPENAI_* 环境变量（如果提供商是 openai）
+        3. 提供商特定的环境变量
         """
-        # If provider is openai and values not set, try OPENAI_* env vars
+        # 如果提供商是 openai 且值未设置，尝试 OPENAI_* 环境变量
         if self.provider == "openai":
             if self.api_key is None:
                 self.api_key = get_env_or_default("OPENAI_API_KEY")
             if self.base_url is None:
                 self.base_url = get_env_or_default("OPENAI_BASE_URL")
-            if self.model == "gpt-4":  # Only override if using default
+            if self.model == "gpt-4":  # 仅在使用默认值时覆盖
                 env_model = get_env_or_default("OPENAI_MODEL")
                 if env_model:
                     self.model = env_model
         
-        # Provider-specific env vars as fallback
+        # 提供商特定的环境变量作为后备
         provider_env_map = {
             "anthropic": ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"),
             "deepseek": ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"),
@@ -117,7 +117,7 @@ class LLMConfig(BaseModel):
         return self
 
     def get_client_config(self) -> dict[str, Any]:
-        """Get configuration dict for creating LLM client."""
+        """获取用于创建 LLM 客户端的配置字典。"""
         config = {
             "provider": self.provider,
             "api_key": self.api_key,
@@ -134,7 +134,7 @@ class LLMConfig(BaseModel):
 
 
 class TrackerConfig(BaseModel):
-    """Configuration for issue tracker (Linear)."""
+    """问题追踪器（Linear）配置。"""
 
     kind: Literal["linear", "memory"] = Field(
         default="linear",
@@ -168,7 +168,7 @@ class TrackerConfig(BaseModel):
     @field_validator("api_key", mode="before")
     @classmethod
     def resolve_api_key(cls, v: str | None) -> str | None:
-        """Resolve API key from environment variable if prefixed with $."""
+        """如果 API key 以 $ 开头，则从环境变量解析。"""
         if isinstance(v, str) and v.startswith("$"):
             env_var = v[1:]
             if env_var and all(c.isalnum() or c == "_" for c in env_var):
@@ -177,7 +177,7 @@ class TrackerConfig(BaseModel):
 
 
 class PollingConfig(BaseModel):
-    """Configuration for polling behavior."""
+    """轮询行为配置。"""
 
     interval_ms: int = Field(
         default=30000,
@@ -187,7 +187,7 @@ class PollingConfig(BaseModel):
 
 
 class WorkspaceConfig(BaseModel):
-    """Configuration for workspace management."""
+    """工作区管理配置。"""
 
     root: str = Field(
         default_factory=default_workspace_root,
@@ -197,23 +197,23 @@ class WorkspaceConfig(BaseModel):
     @field_validator("root", mode="before")
     @classmethod
     def resolve_workspace_root(cls, v: str | None) -> str:
-        """Resolve workspace root, expanding env vars and ~."""
+        """解析工作区根路径，展开环境变量和 ~。"""
         if v is None:
             return default_workspace_root()
 
-        # Resolve environment variables
+        # 解析环境变量
         if v.startswith("$"):
             env_var = v[1:]
             if env_var and all(c.isalnum() or c == "_" for c in env_var):
                 v = os.environ.get(env_var) or default_workspace_root()
 
-        # Expand ~ to home directory
+        # 将 ~ 展开为主目录
         v = os.path.expanduser(v)
         return v
 
 
 class HooksConfig(BaseModel):
-    """Configuration for workspace lifecycle hooks."""
+    """工作区生命周期钩子配置。"""
 
     after_create: str | None = Field(
         default=None,
@@ -239,7 +239,7 @@ class HooksConfig(BaseModel):
 
 
 class AgentConfig(BaseModel):
-    """Configuration for agent behavior."""
+    """代理行为配置。"""
 
     max_concurrent_agents: int = Field(
         default=10,
@@ -273,7 +273,7 @@ class AgentConfig(BaseModel):
 
 
 class ServerConfig(BaseModel):
-    """Configuration for HTTP API server."""
+    """HTTP API 服务器配置。"""
 
     port: int | None = Field(
         default=None,
@@ -287,7 +287,7 @@ class ServerConfig(BaseModel):
 
 
 class ObservabilityConfig(BaseModel):
-    """Configuration for observability features."""
+    """可观测性功能配置。"""
 
     dashboard_enabled: bool = Field(
         default=True,
@@ -301,16 +301,15 @@ class ObservabilityConfig(BaseModel):
 
 
 class SymphonyConfig(BaseModel):
-    """Root configuration for Symphony.
+    """Symphony 根配置。
 
-    This is the main configuration class that holds all settings
-    loaded from WORKFLOW.md, environment variables, or .env file.
+    这是主配置类，保存从 WORKFLOW.md、环境变量或 .env 文件加载的所有设置。
     """
 
-    # LLM configuration (replaces old codex config)
+    # LLM 配置（替代旧的 codex 配置）
     llm: LLMConfig = Field(default_factory=LLMConfig)
     
-    # Other configurations
+    # 其他配置
     tracker: TrackerConfig = Field(default_factory=TrackerConfig)
     polling: PollingConfig = Field(default_factory=PollingConfig)
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
@@ -321,41 +320,41 @@ class SymphonyConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_tracker_config(self) -> "SymphonyConfig":
-        """Validate tracker-specific requirements."""
+        """验证 tracker 特定要求。"""
         if self.tracker.kind == "linear":
             if not self.tracker.api_key:
-                # Allow missing api_key during initial load, will be validated later
+                # 在初始加载期间允许缺少 api_key，稍后将进行验证
                 pass
             if not self.tracker.project_slug:
-                # Allow missing project_slug during initial load
+                # 在初始加载期间允许缺少 project_slug
                 pass
         return self
 
     def get_effective_poll_interval_ms(self) -> int:
-        """Get effective poll interval."""
+        """获取有效的轮询间隔。"""
         return self.polling.interval_ms
 
     def get_effective_max_concurrent_agents(self) -> int:
-        """Get effective max concurrent agents."""
+        """获取有效的最大并发代理数。"""
         return self.agent.max_concurrent_agents
 
     def get_max_concurrent_for_state(self, state_name: str) -> int:
-        """Get max concurrent agents for a specific state."""
+        """获取特定状态的最大并发代理数。"""
         normalized = state_name.lower()
         return self.agent.max_concurrent_agents_by_state.get(
             normalized, self.agent.max_concurrent_agents
         )
 
     def is_state_active(self, state_name: str) -> bool:
-        """Check if a state is considered active."""
+        """检查状态是否被认为是活动的。"""
         normalized = state_name.lower()
         return any(s.lower() == normalized for s in self.tracker.active_states)
 
     def is_state_terminal(self, state_name: str) -> bool:
-        """Check if a state is considered terminal."""
+        """检查状态是否被认为是终止的。"""
         normalized = state_name.lower()
         return any(s.lower() == normalized for s in self.tracker.terminal_states)
 
     def get_llm_client_config(self) -> dict[str, Any]:
-        """Get LLM client configuration."""
+        """获取 LLM 客户端配置。"""
         return self.llm.get_client_config()

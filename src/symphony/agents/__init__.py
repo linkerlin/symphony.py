@@ -1,6 +1,6 @@
-"""Agent module for Symphony.
+"""Symphony 的智能体模块。
 
-Provides Agent implementation using LLMClient.
+提供使用 LLMClient 的智能体实现。
 """
 
 from symphony.agents.agent import SymphonyAgent

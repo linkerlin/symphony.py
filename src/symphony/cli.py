@@ -1,6 +1,6 @@
-"""Command-line interface for Symphony.
+"""Symphony 的命令行界面。
 
-Provides the main entry point for running Symphony.
+提供运行 Symphony 的主要入口点。
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from symphony.prompts.builder import PromptBuilder
 from symphony.trackers.linear import LinearTracker
 from symphony.workspace.manager import WorkspaceManager
 
-# Configure logging
+# 配置日志记录
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -45,11 +45,11 @@ logger = structlog.get_logger()
 
 
 def setup_logging(logs_root: str | None = None, verbose: bool = False) -> None:
-    """Set up logging configuration.
+    """设置日志记录配置。
 
-    Args:
-        logs_root: Directory for log files
-        verbose: Enable verbose logging
+    参数:
+        logs_root: 日志文件的存放目录
+        verbose: 启用详细日志记录
     """
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -62,11 +62,11 @@ def setup_logging(logs_root: str | None = None, verbose: bool = False) -> None:
 @click.group()
 @click.version_option(version="0.1.0", prog_name="symphony")
 def cli():
-    """Symphony - Agent Orchestration System (LLM Provider Agnostic).
+    """Symphony - 智能体编排系统（支持多种 LLM 提供商）。
     
-    Quick start: symphony init
+    快速开始: symphony init
     
-    Run: symphony run WORKFLOW.md
+    运行: symphony run WORKFLOW.md
     """
     pass
 
@@ -110,30 +110,30 @@ def run_command(
     env_file: Path | None,
     dashboard: bool,
 ) -> None:
-    """Run Symphony orchestrator.
+    """运行 Symphony 编排器。
 
-    WORKFLOW_FILE is the path to your WORKFLOW.md configuration file.
-    Defaults to ./WORKFLOW.md if not specified.
+    WORKFLOW_FILE 是指向您的 WORKFLOW.md 配置文件的路径。
+    如果未指定，默认为 ./WORKFLOW.md。
 
-    Configuration priority:
-    1. WORKFLOW.md settings
-    2. Environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
-    3. .env file
-    4. Default values
+    配置优先级:
+    1. WORKFLOW.md 设置
+    2. 环境变量 (OPENAI_API_KEY, ANTHROPIC_API_KEY, 等)
+    3. .env 文件
+    4. 默认值
 
-    Supported LLM providers: openai, anthropic, deepseek, gemini, azure
+    支持的 LLM 提供商: openai, anthropic, deepseek, gemini, azure
     """
     setup_logging(logs_root=str(logs_root) if logs_root else None, verbose=verbose)
 
     logger.info("Starting Symphony", workflow_file=str(workflow_file))
 
-    # Load .env file if specified or load defaults
+    # 如果指定了 .env 文件，则加载它，否则加载默认值
     if env_file:
         from dotenv import load_dotenv
         load_dotenv(env_file)
         logger.debug(f"Loaded env file: {env_file}")
 
-    # Load configuration
+    # 加载配置
     try:
         config = Config.from_file(workflow_file)
         Config.set_instance(config)
@@ -143,11 +143,11 @@ def run_command(
 
     settings = config.settings
 
-    # Override port if specified
+    # 如果指定了端口，则覆盖配置中的端口
     if port is not None:
         settings.server.port = port
 
-    # Log LLM configuration (without API key)
+    # 记录 LLM 配置（不包含 API 密钥）
     logger.info(
         "LLM Configuration",
         provider=settings.llm.provider,
@@ -155,7 +155,7 @@ def run_command(
         base_url=settings.llm.base_url,
     )
 
-    # Create tracker
+    # 创建追踪器
     if settings.tracker.kind == "linear":
         if not settings.tracker.api_key:
             logger.error("Linear API key not configured")
@@ -176,7 +176,7 @@ def run_command(
         logger.error(f"Unsupported tracker kind: {settings.tracker.kind}")
         sys.exit(1)
 
-    # Create workspace manager
+    # 创建工作区管理器
     workspace_manager = WorkspaceManager(
         root=settings.workspace.root,
         hooks={
@@ -188,10 +188,10 @@ def run_command(
         hook_timeout_ms=settings.hooks.timeout_ms,
     )
 
-    # Create prompt builder
+    # 创建提示词构建器
     prompt_builder = PromptBuilder.from_workflow(workflow_file)
 
-    # Create LLM client
+    # 创建 LLM 客户端
     try:
         llm_config = config.get_llm_config()
         llm_client = LLMClient.from_config(llm_config)
@@ -199,7 +199,7 @@ def run_command(
         logger.error(f"Failed to create LLM client: {e}")
         sys.exit(1)
 
-    # Create orchestrator
+    # 创建编排器
     orchestrator = Orchestrator(
         config=config,
         tracker=tracker,
@@ -208,7 +208,7 @@ def run_command(
         llm_client=llm_client,
     )
 
-    # Set up signal handlers
+    # 设置信号处理器
     loop = asyncio.get_event_loop()
 
     def signal_handler(sig: int) -> None:
@@ -218,10 +218,10 @@ def run_command(
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
 
-    # Run orchestrator (with optional dashboard)
+    # 运行编排器（可选择是否启用仪表板）
     try:
         if dashboard:
-            # Run with dashboard
+            # 使用仪表板运行
             dashboard_ui = Dashboard(
                 orchestrator=orchestrator,
                 config=config,
@@ -230,7 +230,7 @@ def run_command(
             loop.run_until_complete(orchestrator.start())
             loop.run_until_complete(dashboard_ui.run_in_background())
         else:
-            # Run without dashboard
+            # 不使用仪表板运行
             loop.run_until_complete(orchestrator.start())
             loop.run_forever()
     except KeyboardInterrupt:
@@ -245,13 +245,13 @@ def run_command(
     logger.info("Symphony stopped")
 
 
-# Add subcommands
+# 添加子命令
 cli.add_command(init_command)
 cli.add_command(validate_command)
 cli.add_command(doctor_command)
 cli.add_command(run_command)
 
-# Backwards compatibility: main = run_command
+# 向后兼容: main = run_command
 main = cli
 
 

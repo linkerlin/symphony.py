@@ -1,6 +1,6 @@
-"""Session state models for Symphony.
+"""Symphony 会话状态模型。
 
-Provides data models for tracking agent session state and metrics.
+提供用于跟踪智能体会话状态和指标的数据模型。
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 
 
 class SessionStatus(Enum):
-    """Status of an agent session."""
+    """智能体会话的状态。"""
 
     PREPARING = auto()
     BUILDING_PROMPT = auto()
@@ -28,20 +28,20 @@ class SessionStatus(Enum):
 
 @dataclass
 class LLMUsage:
-    """LLM token usage metrics."""
+    """LLM 令牌使用指标。"""
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
 
     def add(self, usage: dict[str, int]) -> None:
-        """Add usage from response."""
+        """添加响应中的使用情况。"""
         self.prompt_tokens += usage.get("prompt_tokens", 0)
         self.completion_tokens += usage.get("completion_tokens", 0)
         self.total_tokens += usage.get("total_tokens", 0)
 
     def to_dict(self) -> dict[str, int]:
-        """Convert to dictionary."""
+        """转换为字典。"""
         return {
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
@@ -51,7 +51,7 @@ class LLMUsage:
 
 @dataclass
 class LLMTotals:
-    """Aggregate LLM usage and runtime metrics."""
+    """聚合的 LLM 使用和运行时间指标。"""
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -59,17 +59,17 @@ class LLMTotals:
     seconds_running: float = 0.0
 
     def add_usage(self, prompt: int, completion: int) -> None:
-        """Add token counts to totals."""
+        """将令牌数添加到总计。"""
         self.prompt_tokens += prompt
         self.completion_tokens += completion
         self.total_tokens += prompt + completion
 
     def add_runtime(self, seconds: float) -> None:
-        """Add runtime seconds to totals."""
+        """将运行秒数添加到总计。"""
         self.seconds_running += seconds
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
+        """转换为字典。"""
         return {
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
@@ -80,73 +80,73 @@ class LLMTotals:
 
 @dataclass
 class SessionState:
-    """State of a single agent session.
+    """单个智能体会话的状态。
 
-    Tracks the lifecycle and metrics of an agent execution session.
+    跟踪智能体执行会话的生命周期和指标。
     """
 
-    # Identifiers
+    # 标识符
     issue_id: str
     issue_identifier: str
     session_id: str | None = None
     thread_id: str | None = None
     turn_id: str | None = None
 
-    # Status
+    # 状态
     status: SessionStatus = SessionStatus.PREPARING
     error: str | None = None
 
-    # Runtime info
+    # 运行时信息
     workspace_path: str | None = None
     worker_host: str | None = None
     llm_model: str | None = None
 
-    # Timestamps
+    # 时间戳
     started_at: datetime = field(default_factory=datetime.utcnow)
     last_activity_at: datetime = field(default_factory=datetime.utcnow)
     ended_at: datetime | None = None
 
-    # Token tracking (LLM provider agnostic)
+    # 令牌跟踪（与 LLM 提供商无关）
     llm_usage: LLMUsage = field(default_factory=LLMUsage)
     turn_count: int = 0
 
-    # Event tracking
+    # 事件跟踪
     last_event: str | None = None
     last_message: str | None = None
 
     def update_activity(self) -> None:
-        """Update last activity timestamp."""
+        """更新最后活动时间戳。"""
         self.last_activity_at = datetime.utcnow()
 
     def add_usage(self, usage: dict[str, int]) -> None:
-        """Add LLM usage to session."""
+        """将 LLM 使用情况添加到会话。"""
         self.llm_usage.add(usage)
         self.update_activity()
 
     def increment_turn(self) -> None:
-        """Increment turn counter."""
+        """增加轮次计数器。"""
         self.turn_count += 1
         self.update_activity()
 
     def set_event(self, event: str, message: str | None = None) -> None:
-        """Set last event and optional message."""
+        """设置最后事件和可选消息。"""
         self.last_event = event
         if message:
             self.last_message = message
         self.update_activity()
 
     def complete(self, status: SessionStatus = SessionStatus.COMPLETED) -> None:
-        """Mark session as completed with given status."""
+        """将会话标记为以给定状态完成。"""
         self.status = status
         self.ended_at = datetime.utcnow()
 
     def get_runtime_seconds(self) -> float:
-        """Get current runtime in seconds."""
+        """获取当前运行时间（秒）。"""
         end = self.ended_at or datetime.utcnow()
         return (end - self.started_at).total_seconds()
 
     def is_active(self) -> bool:
-        """Check if session is still active."""
+        """检查会话是否仍处于活动状态。"""
         return self.status in {
             SessionStatus.PREPARING,
             SessionStatus.BUILDING_PROMPT,
@@ -156,7 +156,7 @@ class SessionState:
         }
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
+        """转换为字典。"""
         return {
             "issue_id": self.issue_id,
             "issue_identifier": self.issue_identifier,

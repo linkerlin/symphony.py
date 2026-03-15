@@ -1,7 +1,7 @@
-"""Core orchestrator for Symphony.
+"""Symphony 的核心编排器。
 
-Manages polling, dispatch, retries, and reconciliation of agent runs.
-Works with any LLM provider (OpenAI, Anthropic, DeepSeek, Gemini, etc.)
+管理智能体运行的轮询、分发、重试和协调。
+适用于任何 LLM 提供商（OpenAI、Anthropic、DeepSeek、Gemini 等）
 """
 
 from __future__ import annotations
@@ -25,27 +25,27 @@ logger = logging.getLogger(__name__)
 
 
 class OrchestratorError(Exception):
-    """Raised when orchestrator operation fails."""
+    """当编排器操作失败时抛出。"""
 
     pass
 
 
 class Orchestrator:
-    """Main orchestrator for Symphony.
+    """Symphony 的主编排器。
 
-    Responsibilities:
-    - Poll Linear for candidate issues
-    - Manage concurrent agent execution
-    - Handle retries with exponential backoff
-    - Reconcile issue states
-    - Track metrics and expose state
+    职责：
+    - 轮询 Linear 获取候选问题
+    - 管理并发智能体执行
+    - 处理指数退避重试
+    - 协调问题状态
+    - 跟踪指标并暴露状态
 
-    Works with any LLM provider configured in settings.
+    适用于设置中配置的任何 LLM 提供商。
     """
 
-    # Retry backoff constants
-    CONTINUATION_RETRY_DELAY_MS = 1000  # 1 second for normal continuation
-    FAILURE_RETRY_BASE_MS = 10000  # 10 seconds base for failure retry
+    # 重试退避常量
+    CONTINUATION_RETRY_DELAY_MS = 1000  # 正常继续操作的延迟为 1 秒
+    FAILURE_RETRY_BASE_MS = 10000  # 失败重试的基础延迟为 10 秒
 
     def __init__(
         self,
@@ -55,14 +55,14 @@ class Orchestrator:
         prompt_builder: PromptBuilder,
         llm_client: LLMClient | None = None,
     ) -> None:
-        """Initialize orchestrator.
+        """初始化编排器。
 
-        Args:
-            config: Configuration instance
-            tracker: Issue tracker instance
-            workspace_manager: Workspace manager instance
-            prompt_builder: Prompt builder instance
-            llm_client: Optional LLM client (created from config if not provided)
+        参数：
+            config: 配置实例
+            tracker: 问题跟踪器实例
+            workspace_manager: 工作空间管理器实例
+            prompt_builder: 提示词构建器实例
+            llm_client: 可选的 LLM 客户端（如果未提供则从配置创建）
         """
         self.config = config
         self.tracker = tracker
@@ -76,62 +76,62 @@ class Orchestrator:
         self._callbacks: list[Callable[[str, Any], None]] = []
 
     def add_callback(self, callback: Callable[[str, Any], None]) -> None:
-        """Add a callback for state change events.
+        """添加状态变更事件的回调函数。
 
-        Args:
-            callback: Function to call with (event_type, data)
+        参数：
+            callback: 调用时传入 (event_type, data) 的函数
         """
         self._callbacks.append(callback)
 
     def _notify(self, event_type: str, data: Any) -> None:
-        """Notify all callbacks of an event."""
+        """通知所有回调函数有事件发生。"""
         for callback in self._callbacks:
             try:
                 callback(event_type, data)
             except Exception as e:
-                logger.warning(f"Callback failed: {e}")
+                logger.warning(f"回调失败: {e}")
 
     async def start(self) -> None:
-        """Start the orchestrator.
+        """启动编排器。
 
-        Initializes state and starts the polling loop.
+        初始化状态并启动轮询循环。
         """
-        logger.info("Starting Symphony orchestrator")
+        logger.info("启动 Symphony 编排器")
 
-        # Validate configuration
+        # 验证配置
         try:
             self.config.validate()
         except ConfigError as e:
-            raise OrchestratorError(f"Invalid configuration: {e}") from e
+            raise OrchestratorError(f"配置无效: {e}") from e
 
-        # Initialize LLM client if not provided
+        # 如果未提供则初始化 LLM 客户端
         if self.llm_client is None:
             llm_config = self.config.get_llm_config()
             self.llm_client = LLMClient.from_config(llm_config)
             logger.info(
-                f"Initialized LLM client: provider={llm_config.get('provider')}, "
-                f"model={llm_config.get('model')}"
+                f"已初始化 LLM 客户端: 提供商={llm_config.get('provider')}, "
+                f"模型={llm_config.get('model')}"
             )
 
         self._running = True
 
-        # Clean up terminal workspaces
+        # 清理终端状态工作空间
         await self._clean_terminal_workspaces()
 
-        # Start polling loop
+        # 启动轮询循环
         self._poll_task = asyncio.create_task(self._poll_loop())
 
-        logger.info("Orchestrator started")
+        logger.info("编排器已启动")
 
     async def stop(self) -> None:
-        """Stop the orchestrator.
+        """停止编排器。
 
-        Cancels polling and waits for running agents.
+        取消轮询并等待运行中的智能体。
         """
-        logger.info("Stopping Symphony orchestrator")
+        logger.info("停止 Symphony 编排器")
         self._running = False
 
-        # Cancel polling task
+        # 取消轮询任务
         if self._poll_task:
             self._poll_task.cancel()
             try:
@@ -139,84 +139,84 @@ class Orchestrator:
             except asyncio.CancelledError:
                 pass
 
-        # Cancel all running agents
+        # 取消所有运行中的智能体
         for issue_id, entry in list(self.state.running.items()):
-            logger.info(f"Cancelling agent for issue {issue_id}")
+            logger.info(f"正在取消问题 {issue_id} 的智能体")
             entry.task.cancel()
 
-        # Wait for agents to finish
+        # 等待智能体完成
         if self.state.running:
             await asyncio.gather(
                 *[entry.task for entry in self.state.running.values()],
                 return_exceptions=True,
             )
 
-        # Close LLM client
+        # 关闭 LLM 客户端
         if self.llm_client:
             await self.llm_client.close()
 
-        logger.info("Orchestrator stopped")
+        logger.info("编排器已停止")
 
     async def _poll_loop(self) -> None:
-        """Main polling loop."""
-        logger.debug("Starting poll loop")
+        """主轮询循环。"""
+        logger.debug("启动轮询循环")
 
-        # Initial tick immediately
+        # 立即执行首次 tick
         await self._tick()
 
         while self._running:
             try:
-                # Wait for poll interval
+                # 等待轮询间隔
                 await asyncio.sleep(self.state.poll_interval_ms / 1000)
 
                 if self._running:
                     await self._tick()
 
             except asyncio.CancelledError:
-                logger.debug("Poll loop cancelled")
+                logger.debug("轮询循环已取消")
                 break
             except Exception as e:
-                logger.exception(f"Error in poll loop: {e}")
+                logger.exception(f"轮询循环出错: {e}")
 
     async def _tick(self) -> None:
-        """Execute one poll/dispatch cycle."""
-        logger.debug("Poll tick")
+        """执行一次轮询/分发周期。"""
+        logger.debug("轮询 tick")
 
-        # Update dynamic configuration
+        # 更新动态配置
         await self._refresh_config()
 
-        # Reconcile running issues
+        # 协调运行中的问题
         await self._reconcile()
 
-        # Validate configuration
+        # 验证配置
         try:
             self.config.validate()
         except ConfigError as e:
-            logger.error(f"Configuration invalid: {e}")
+            logger.error(f"配置无效: {e}")
             return
 
-        # Fetch and dispatch candidate issues
+        # 获取并分发候选问题
         await self._fetch_and_dispatch()
 
-        # Notify state update
+        # 通知状态更新
         self._notify("state_updated", self.state.to_snapshot())
 
     async def _refresh_config(self) -> None:
-        """Refresh dynamic configuration."""
+        """刷新动态配置。"""
         settings = self.config.settings
         self.state.poll_interval_ms = settings.polling.interval_ms
         self.state.max_concurrent_agents = settings.agent.max_concurrent_agents
         self.state.max_retry_backoff_ms = settings.agent.max_retry_backoff_ms
 
     async def _reconcile(self) -> None:
-        """Reconcile running issues with tracker state."""
+        """将运行中的问题与跟踪器状态进行协调。"""
         if not self.state.running:
             return
 
         issue_ids = list(self.state.running.keys())
 
         try:
-            # Fetch current states
+            # 获取当前状态
             refreshed = await self.tracker.fetch_issue_states_by_ids(issue_ids)
             refreshed_by_id = {issue.id: issue for issue in refreshed}
 
@@ -230,50 +230,50 @@ class Orchestrator:
                 refreshed_issue = refreshed_by_id.get(issue_id)
 
                 if not refreshed_issue:
-                    # Issue no longer visible
-                    logger.info(f"Issue {issue_id} no longer visible, stopping")
+                    # 问题不再可见
+                    logger.info(f"问题 {issue_id} 不再可见，停止")
                     await self._stop_issue(issue_id, cleanup=False)
                     continue
 
-                # Check if terminal
+                # 检查是否为终端状态
                 if settings.is_state_terminal(refreshed_issue.state):
                     logger.info(
-                        f"Issue {refreshed_issue.identifier} moved to terminal state "
-                        f"{refreshed_issue.state}, stopping and cleaning up"
+                        f"问题 {refreshed_issue.identifier} 已进入终端状态 "
+                        f"{refreshed_issue.state}，停止并清理"
                     )
                     await self._stop_issue(issue_id, cleanup=True)
                     continue
 
-                # Check if no longer active
+                # 检查是否不再活跃
                 if not settings.is_state_active(refreshed_issue.state):
                     logger.info(
-                        f"Issue {refreshed_issue.identifier} no longer active "
-                        f"({refreshed_issue.state}), stopping"
+                        f"问题 {refreshed_issue.identifier} 不再活跃 "
+                        f"({refreshed_issue.state})，停止"
                     )
                     await self._stop_issue(issue_id, cleanup=False)
                     continue
 
-                # Update issue data
+                # 更新问题数据
                 entry.issue = refreshed_issue
 
         except Exception as e:
-            logger.exception(f"Reconciliation failed: {e}")
+            logger.exception(f"协调失败: {e}")
 
     async def _fetch_and_dispatch(self) -> None:
-        """Fetch candidate issues and dispatch agents."""
+        """获取候选问题并分发智能体。"""
         if self.state.is_at_capacity:
-            logger.debug("At capacity, skipping dispatch")
+            logger.debug("已达容量上限，跳过分发")
             return
 
         try:
-            # Fetch candidate issues
+            # 获取候选问题
             issues = await self.tracker.fetch_candidate_issues()
-            logger.debug(f"Fetched {len(issues)} candidate issues")
+            logger.debug(f"获取到 {len(issues)} 个候选问题")
 
-            # Sort for dispatch priority
+            # 按分发优先级排序
             sorted_issues = self._sort_issues(issues)
 
-            # Dispatch while slots available
+            # 有空闲槽位时分发
             for issue in sorted_issues:
                 if self.state.is_at_capacity:
                     break
@@ -282,86 +282,86 @@ class Orchestrator:
                     await self._dispatch(issue)
 
         except Exception as e:
-            logger.exception(f"Fetch and dispatch failed: {e}")
+            logger.exception(f"获取和分发失败: {e}")
 
     def _sort_issues(self, issues: list[Issue]) -> list[Issue]:
-        """Sort issues by dispatch priority.
+        """按分发优先级排序问题。
 
-        Priority:
-        1. Priority (lower number = higher priority)
-        2. Created at (older first)
-        3. Identifier (lexicographic)
+        优先级：
+        1. 优先级（数字越小优先级越高）
+        2. 创建时间（越早越优先）
+        3. 标识符（字典序）
 
-        Args:
-            issues: List of issues to sort
+        参数：
+            issues: 要排序的问题列表
 
-        Returns:
-            Sorted list of issues
+        返回：
+            排序后的问题列表
         """
 
         def sort_key(issue: Issue) -> tuple:
-            # Priority: lower is better, missing priority sorts last
+            # 优先级：越小越好，无优先级排最后
             priority = issue.priority if issue.priority is not None else 999
-            # Created at: older is better
+            # 创建时间：越早越好
             created = issue.created_at or datetime.max
             return (priority, created, issue.identifier)
 
         return sorted(issues, key=sort_key)
 
     def _should_dispatch(self, issue: Issue) -> bool:
-        """Check if an issue should be dispatched.
+        """检查是否应该分发问题。
 
-        Args:
-            issue: Issue to check
+        参数：
+            issue: 要检查的问题
 
-        Returns:
-            True if issue should be dispatched
+        返回：
+            如果应该分发则返回 True
         """
-        # Check if already claimed
+        # 检查是否已被认领
         if self.state.is_issue_claimed(issue.id):
             return False
 
-        # Check if already running
+        # 检查是否已在运行
         if self.state.is_issue_running(issue.id):
             return False
 
-        # Check concurrency limits
+        # 检查并发限制
         settings = self.config.settings
         state_limit = settings.get_max_concurrent_for_state(issue.state)
         state_count = self.state.get_running_count_for_state(issue.state)
         if state_count >= state_limit:
             logger.debug(
-                f"State {issue.state} at capacity ({state_count}/{state_limit})"
+                f"状态 {issue.state} 已达容量上限 ({state_count}/{state_limit})"
             )
             return False
 
         return True
 
     async def _dispatch(self, issue: Issue, attempt: int | None = None) -> None:
-        """Dispatch an agent for an issue.
+        """为问题分发智能体。
 
-        Args:
-            issue: Issue to dispatch
-            attempt: Retry attempt number
+        参数：
+            issue: 要分发的问题
+            attempt: 重试次数
         """
-        logger.info(f"Dispatching agent for {issue.get_context_string()}")
+        logger.info(f"正在为 {issue.get_context_string()} 分发智能体")
 
-        # Claim the issue
+        # 认领问题
         self.state.claimed.add(issue.id)
 
-        # Remove from retry queue if present
+        # 如果存在则从重试队列中移除
         if issue.id in self.state.retry_attempts:
             entry = self.state.retry_attempts.pop(issue.id)
             if entry.timer_handle:
                 entry.timer_handle.cancel()
 
-        # Create task
+        # 创建任务
         task = asyncio.create_task(
             self._run_agent(issue, attempt),
             name=f"agent-{issue.identifier}",
         )
 
-        # Add to running
+        # 添加到运行中
         session_state = SessionState(
             issue_id=issue.id,
             issue_identifier=issue.identifier,
@@ -374,7 +374,7 @@ class Orchestrator:
             retry_attempt=attempt or 0,
         )
 
-        # Set up completion callback
+        # 设置完成回调
         task.add_done_callback(
             lambda t, iid=issue.id: asyncio.create_task(
                 self._handle_agent_completion(iid, t)
@@ -384,24 +384,24 @@ class Orchestrator:
         self._notify("agent_dispatched", {"issue_id": issue.id, "attempt": attempt})
 
     async def _run_agent(self, issue: Issue, attempt: int | None) -> None:
-        """Run agent for an issue.
+        """为问题运行智能体。
 
-        This is the actual agent execution coroutine.
+        这是实际的智能体执行协程。
 
-        Args:
-            issue: Issue to process
-            attempt: Retry attempt number
+        参数：
+            issue: 要处理的问题
+            attempt: 重试次数
         """
-        logger.info(f"Running agent for {issue.get_context_string()}")
+        logger.info(f"正在为 {issue.get_context_string()} 运行智能体")
 
-        # Create workspace
+        # 创建工作空间
         workspace_path, created = await self.workspace_manager.create_for_issue(issue)
-        logger.debug(f"Workspace: {workspace_path}, created: {created}")
+        logger.debug(f"工作空间: {workspace_path}, 已创建: {created}")
 
-        # Run before_run hook
+        # 运行 before_run 钩子
         await self.workspace_manager.run_before_run_hook(workspace_path, issue)
 
-        # Create agent with tools
+        # 创建带工具的智能体
         from symphony.agents.tools import (
             add_comment,
             execute_command,
@@ -429,7 +429,7 @@ class Orchestrator:
         )
 
         try:
-            # Run agent
+            # 运行智能体
             settings = self.config.settings
             result = await agent.run(
                 issue=issue,
@@ -438,7 +438,7 @@ class Orchestrator:
                 attempt=attempt,
             )
 
-            # Update session state with results
+            # 用结果更新会话状态
             entry = self.state.running.get(issue.id)
             if entry:
                 entry.session_state.turn_count = result.get("turns", 0)
@@ -446,69 +446,69 @@ class Orchestrator:
                 entry.session_state.add_usage(tokens)
 
             logger.info(
-                f"Agent completed for {issue.identifier}: "
-                f"{result.get('turns', 0)} turns, "
-                f"tokens: {tokens}"
+                f"智能体已完成 {issue.identifier}: "
+                f"{result.get('turns', 0)} 轮次, "
+                f"令牌数: {tokens}"
             )
 
         except AgentError as e:
-            logger.error(f"Agent failed for {issue.identifier}: {e}")
+            logger.error(f"智能体 {issue.identifier} 失败: {e}")
             raise
 
         except asyncio.CancelledError:
-            logger.info(f"Agent cancelled for {issue.identifier}")
+            logger.info(f"智能体 {issue.identifier} 已取消")
             raise
 
         finally:
-            # Run after_run hook (best effort)
+            # 运行 after_run 钩子（尽力而为）
             await self.workspace_manager.run_after_run_hook(workspace_path, issue)
 
     async def _handle_agent_completion(
         self, issue_id: str, task: asyncio.Task
     ) -> None:
-        """Handle agent task completion.
+        """处理智能体任务完成。
 
-        Args:
-            issue_id: Issue ID
-            task: Completed task
+        参数：
+            issue_id: 问题 ID
+            task: 已完成的任务
         """
         entry = self.state.running.pop(issue_id, None)
         if not entry:
             return
 
-        # Update metrics
+        # 更新指标
         runtime = entry.session_state.get_runtime_seconds()
         self.state.llm_totals.add_runtime(runtime)
 
-        # Check result
+        # 检查结果
         exception = task.exception()
 
         if exception is None:
-            # Normal completion
-            logger.info(f"Agent completed normally for {entry.issue.identifier}")
+            # 正常完成
+            logger.info(f"智能体正常完成 {entry.issue.identifier}")
             self.state.completed.add(issue_id)
 
-            # Schedule continuation check
+            # 安排继续检查
             self._schedule_retry(
                 issue_id,
                 entry.issue.identifier,
-                1,  # First continuation attempt
+                1,  # 首次继续尝试
                 is_continuation=True,
                 worker_host=entry.worker_host,
                 workspace_path=entry.workspace_path,
             )
 
         elif isinstance(exception, asyncio.CancelledError):
-            # Cancelled
-            logger.info(f"Agent cancelled for {entry.issue.identifier}")
+            # 已取消
+            logger.info(f"智能体 {entry.issue.identifier} 已取消")
 
         else:
-            # Failed
+            # 失败
             logger.error(
-                f"Agent failed for {entry.issue.identifier}: {exception}"
+                f"智能体 {entry.issue.identifier} 失败: {exception}"
             )
 
-            # Schedule retry
+            # 安排重试
             next_attempt = (entry.retry_attempt or 0) + 1
             self._schedule_retry(
                 issue_id,
@@ -520,26 +520,26 @@ class Orchestrator:
                 workspace_path=entry.workspace_path,
             )
 
-        # Remove from claimed
+        # 从已认领中移除
         self.state.claimed.discard(issue_id)
 
         self._notify("agent_completed", {"issue_id": issue_id, "error": str(exception) if exception else None})
 
     async def _stop_issue(self, issue_id: str, cleanup: bool) -> None:
-        """Stop a running issue.
+        """停止运行中的问题。
 
-        Args:
-            issue_id: Issue ID to stop
-            cleanup: Whether to clean up workspace
+        参数：
+            issue_id: 要停止的问题 ID
+            cleanup: 是否清理工作空间
         """
         entry = self.state.running.get(issue_id)
         if not entry:
             return
 
-        # Cancel task
+        # 取消任务
         entry.task.cancel()
 
-        # Clean up workspace if terminal
+        # 如果是终端状态则清理工作空间
         if cleanup and entry.workspace_path:
             try:
                 await self.workspace_manager.remove_workspace(
@@ -547,7 +547,7 @@ class Orchestrator:
                     run_hook=True,
                 )
             except Exception as e:
-                logger.warning(f"Failed to clean workspace: {e}")
+                logger.warning(f"清理工作空间失败: {e}")
 
     def _schedule_retry(
         self,
@@ -559,22 +559,22 @@ class Orchestrator:
         worker_host: str | None = None,
         workspace_path: str | None = None,
     ) -> None:
-        """Schedule a retry for an issue.
+        """为问题安排重试。
 
-        Args:
-            issue_id: Issue ID
-            identifier: Issue identifier
-            attempt: Attempt number
-            is_continuation: Whether this is a continuation (not a failure retry)
-            error: Error message for failure retries
-            worker_host: Worker host preference
-            workspace_path: Workspace path to reuse
+        参数：
+            issue_id: 问题 ID
+            identifier: 问题标识符
+            attempt: 尝试次数
+            is_continuation: 这是否是继续操作（非失败重试）
+            error: 失败重试的错误信息
+            worker_host: 工作节点主机偏好
+            workspace_path: 要复用的工作空间路径
         """
-        # Calculate delay
+        # 计算延迟
         if is_continuation and attempt == 1:
             delay_ms = self.CONTINUATION_RETRY_DELAY_MS
         else:
-            # Exponential backoff
+            # 指数退避
             power = min(attempt - 1, 10)
             delay_ms = min(
                 self.FAILURE_RETRY_BASE_MS * (2 ** power),
@@ -584,16 +584,16 @@ class Orchestrator:
         delay_seconds = delay_ms / 1000
 
         logger.info(
-            f"Scheduling retry for {identifier} in {delay_seconds}s "
-            f"(attempt {attempt})"
+            f"安排在 {delay_seconds} 秒后重试 {identifier} "
+            f"(第 {attempt} 次尝试)"
         )
 
-        # Cancel existing retry if any
+        # 取消现有的重试（如果有）
         existing = self.state.retry_attempts.get(issue_id)
         if existing and existing.timer_handle:
             existing.timer_handle.cancel()
 
-        # Schedule new retry
+        # 安排新的重试
         now = datetime.utcnow()
         due_at = now + timedelta(milliseconds=delay_ms)
 
@@ -619,49 +619,49 @@ class Orchestrator:
         self.state.claimed.add(issue_id)
 
     async def _execute_retry(self, issue_id: str) -> None:
-        """Execute a scheduled retry.
+        """执行安排的重试。
 
-        Args:
-            issue_id: Issue ID to retry
+        参数：
+            issue_id: 要重试的问题 ID
         """
         entry = self.state.retry_attempts.pop(issue_id, None)
         if not entry:
             return
 
-        logger.debug(f"Executing retry for {entry.identifier}")
+        logger.debug(f"执行 {entry.identifier} 的重试")
 
         try:
-            # Fetch fresh issue data
+            # 获取最新问题数据
             issues = await self.tracker.fetch_candidate_issues()
             issue = next((i for i in issues if i.id == issue_id), None)
 
             if not issue:
-                logger.info(f"Issue {entry.identifier} no longer eligible, dropping")
+                logger.info(f"问题 {entry.identifier} 不再符合条件，放弃")
                 self.state.claimed.discard(issue_id)
                 return
 
-            # Check if still eligible
+            # 检查是否仍然符合条件
             if not self._should_dispatch(issue):
-                logger.debug(f"Issue {entry.identifier} not dispatchable, rescheduling")
+                logger.debug(f"问题 {entry.identifier} 无法分发，重新安排")
                 self._schedule_retry(
                     issue_id,
                     entry.identifier,
                     entry.attempt + 1,
-                    error="No available slots",
+                    error="无可用槽位",
                     worker_host=entry.worker_host,
                     workspace_path=entry.workspace_path,
                 )
                 return
 
-            # Dispatch
+            # 分发
             await self._dispatch(issue, attempt=entry.attempt)
 
         except Exception as e:
-            logger.exception(f"Retry execution failed: {e}")
+            logger.exception(f"重试执行失败: {e}")
             self.state.claimed.discard(issue_id)
 
     async def _clean_terminal_workspaces(self) -> None:
-        """Clean up workspaces for terminal issues."""
+        """清理终端状态问题的工作空间。"""
         try:
             settings = self.config.settings
             terminal_issues = await self.tracker.fetch_issues_by_states(
@@ -672,12 +672,12 @@ class Orchestrator:
             await self.workspace_manager.clean_terminal_workspaces(identifiers)
 
         except Exception as e:
-            logger.warning(f"Failed to clean terminal workspaces: {e}")
+            logger.warning(f"清理终端工作空间失败: {e}")
 
     def get_state(self) -> OrchestratorState:
-        """Get current orchestrator state."""
+        """获取当前编排器状态。"""
         return self.state
 
     def get_snapshot(self) -> dict[str, Any]:
-        """Get state snapshot."""
+        """获取状态快照。"""
         return self.state.to_snapshot()

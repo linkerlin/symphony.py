@@ -1,3 +1,3 @@
-"""Utility functions for Symphony."""
+"""Symphony 工具函数。"""
 
 __all__ = []

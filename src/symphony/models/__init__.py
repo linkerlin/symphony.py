@@ -1,6 +1,6 @@
-"""Data models for Symphony.
+"""Symphony 数据模型。
 
-Provides Pydantic models for issues, sessions, and events.
+提供用于事项、会话和事件的 Pydantic 模型。
 """
 
 from symphony.models.issue import BlockerRef, Issue

@@ -1,4 +1,4 @@
-"""File operation tools for Agent."""
+"""Agent 的文件操作工具。"""
 
 from pathlib import Path
 from typing import Any
@@ -7,14 +7,14 @@ from symphony.workspace import PathSafetyError, resolve_workspace_path
 
 
 def read_file(file_path: str, _workspace: str | None = None, **kwargs: Any) -> dict:
-    """Read contents of a file.
+    """读取文件内容。
 
     Args:
-        file_path: Path to file (relative to workspace or absolute)
-        _workspace: Workspace directory (injected by agent)
+        file_path: 文件路径（相对于工作区或绝对路径）
+        _workspace: 工作区目录（由 Agent 注入）
 
     Returns:
-        Dict with content, path, and size
+        包含 content、path 和 size 的字典
     """
     try:
         path = resolve_workspace_path(file_path, _workspace)
@@ -56,20 +56,20 @@ def write_file(
     _workspace: str | None = None,
     **kwargs: Any,
 ) -> dict:
-    """Write content to a file.
+    """将内容写入文件。
 
     Args:
-        file_path: Path to file (relative to workspace)
-        content: Content to write
-        _workspace: Workspace directory (injected by agent)
+        file_path: 文件路径（相对于工作区）
+        content: 要写入的内容
+        _workspace: 工作区目录（由 Agent 注入）
 
     Returns:
-        Dict with success status and file info
+        包含成功状态和文件信息的字典
     """
     try:
         path = resolve_workspace_path(file_path, _workspace)
         
-        # Create parent directories
+        # 创建父目录
         path.parent.mkdir(parents=True, exist_ok=True)
         
         path.write_text(content, encoding="utf-8")
@@ -97,14 +97,14 @@ def list_directory(
     _workspace: str | None = None,
     **kwargs: Any,
 ) -> dict:
-    """List contents of a directory.
+    """列出目录内容。
 
     Args:
-        dir_path: Directory path (relative to workspace)
-        _workspace: Workspace directory (injected by agent)
+        dir_path: 目录路径（相对于工作区）
+        _workspace: 工作区目录（由 Agent 注入）
 
     Returns:
-        Dict with directory entries
+        包含目录条目的字典
     """
     try:
         path = resolve_workspace_path(dir_path, _workspace)

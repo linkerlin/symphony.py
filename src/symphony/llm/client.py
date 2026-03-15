@@ -1,7 +1,7 @@
-"""LLM client for Symphony.
+"""Symphony 的 LLM 客户端。
 
-Provider-agnostic LLM client supporting multiple backends.
-Uses httpx for async HTTP requests.
+与提供商无关的 LLM 客户端，支持多个后端。
+使用 httpx 进行异步 HTTP 请求。
 """
 
 from __future__ import annotations
@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Message:
-    """A chat message."""
+    """聊天消息。"""
 
     role: Literal["system", "user", "assistant", "function"]
     content: str
-    name: str | None = None  # For function messages
-    function_call: dict[str, Any] | None = None  # For assistant function calls
+    name: str | None = None  # 用于函数消息
+    function_call: dict[str, Any] | None = None  # 用于助手函数调用
 
 
 @dataclass
 class LLMResponse:
-    """Response from LLM."""
+    """LLM 的响应。"""
 
     content: str
     role: str = "assistant"
@@ -41,7 +41,7 @@ class LLMResponse:
 
 @dataclass
 class LLMStreamChunk:
-    """A chunk of a streaming LLM response."""
+    """流式 LLM 响应的一个数据块。"""
 
     content: str
     is_finished: bool = False
@@ -49,25 +49,25 @@ class LLMStreamChunk:
 
 
 class LLMError(Exception):
-    """Raised when LLM request fails."""
+    """当 LLM 请求失败时抛出。"""
 
     pass
 
 
 class LLMClient:
-    """Provider-agnostic LLM client.
+    """与提供商无关的 LLM 客户端。
 
-    Supports OpenAI, Anthropic, DeepSeek, Gemini, and Azure OpenAI.
+    支持 OpenAI、Anthropic、DeepSeek、Gemini 和 Azure OpenAI。
 
-    Example:
+    示例:
         >>> client = LLMClient.from_config({
         ...     "provider": "openai",
         ...     "api_key": "sk-...",
         ...     "model": "gpt-4"
         ... })
         >>> response = await client.complete([
-        ...     Message(role="system", content="You are a helpful assistant."),
-        ...     Message(role="user", content="Hello!")
+        ...     Message(role="system", content="你是一个有帮助的助手。"),
+        ...     Message(role="user", content="你好！")
         ... ])
     """
 
@@ -83,18 +83,18 @@ class LLMClient:
         max_retries: int = 3,
         **kwargs: Any,
     ) -> None:
-        """Initialize LLM client.
+        """初始化 LLM 客户端。
 
         Args:
-            provider: LLM provider name
-            api_key: API key for the provider
-            model: Model name (uses provider default if not specified)
-            base_url: Custom base URL for API
-            temperature: Sampling temperature (0-2)
-            max_tokens: Maximum tokens to generate
-            timeout: Request timeout in seconds
-            max_retries: Maximum retries for failed requests
-            **kwargs: Additional provider-specific options
+            provider: LLM 提供商名称
+            api_key: 提供商的 API 密钥
+            model: 模型名称（如果未指定则使用提供商默认值）
+            base_url: API 的自定义基础 URL
+            temperature: 采样温度（0-2）
+            max_tokens: 生成的最大令牌数
+            timeout: 请求超时时间（秒）
+            max_retries: 失败请求的最大重试次数
+            **kwargs: 额外的提供商特定选项
         """
         self.provider = ProviderType(provider) if isinstance(provider, str) else provider
         self.api_key = api_key
@@ -102,42 +102,42 @@ class LLMClient:
         self.max_retries = max_retries
         self.kwargs = kwargs
 
-        # Get provider defaults
+        # 获取提供商默认值
         defaults = get_provider_defaults(self.provider)
         self.model = model or defaults.get("model", "gpt-4")
         self.base_url = base_url or defaults.get("base_url")
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # Provider-specific settings
+        # 提供商特定设置
         self.supports_system = defaults.get("supports_system_message", True)
         self.supports_functions = defaults.get("supports_functions", True)
 
-        # Setup HTTP client
+        # 设置 HTTP 客户端
         self._client = httpx.AsyncClient(
             timeout=timeout,
             headers=self._get_headers(),
         )
 
         logger.debug(
-            f"Initialized LLM client: provider={self.provider.value}, "
+            f"已初始化 LLM 客户端: provider={self.provider.value}, "
             f"model={self.model}"
         )
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> LLMClient:
-        """Create LLM client from configuration dictionary.
+        """从配置字典创建 LLM 客户端。
 
         Args:
-            config: Configuration dict with keys like provider, api_key, etc.
+            config: 包含 provider、api_key 等键的配置字典
 
         Returns:
-            Configured LLMClient
+            配置好的 LLMClient
         """
         return cls(**config)
 
     def _get_headers(self) -> dict[str, str]:
-        """Get HTTP headers for API requests."""
+        """获取 API 请求的 HTTP 头。"""
         if self.provider == ProviderType.OPENAI:
             return {
                 "Authorization": f"Bearer {self.api_key}",
@@ -170,7 +170,7 @@ class LLMClient:
             }
 
     def _get_api_url(self) -> str:
-        """Get API endpoint URL."""
+        """获取 API 端点 URL。"""
         if self.provider == ProviderType.OPENAI:
             base = self.base_url or "https://api.openai.com/v1"
             return f"{base}/chat/completions"
@@ -181,24 +181,24 @@ class LLMClient:
             base = self.base_url or "https://api.deepseek.com"
             return f"{base}/chat/completions"
         elif self.provider == ProviderType.GEMINI:
-            # Gemini uses a different URL format
+            # Gemini 使用不同的 URL 格式
             base = self.base_url or "https://generativelanguage.googleapis.com/v1"
             return f"{base}/models/{self.model}:generateContent?key={self.api_key}"
         elif self.provider == ProviderType.AZURE:
             if not self.base_url:
-                raise LLMError("Azure OpenAI requires base_url (endpoint)")
+                raise LLMError("Azure OpenAI 需要提供 base_url（端点）")
             return f"{self.base_url}/openai/deployments/{self.model}/chat/completions?api-version=2024-02-01"
         else:
-            raise LLMError(f"Unknown provider: {self.provider}")
+            raise LLMError(f"未知的提供商: {self.provider}")
 
     def _format_messages(self, messages: list[Message]) -> list[dict[str, Any]]:
-        """Format messages for API request."""
+        """格式化消息以用于 API 请求。"""
         if self.provider == ProviderType.ANTHROPIC:
-            # Anthropic uses a different format
+            # Anthropic 使用不同的格式
             formatted = []
             for msg in messages:
                 if msg.role == "system":
-                    # Anthropic handles system separately
+                    # Anthropic 单独处理系统消息
                     continue
                 formatted.append({
                     "role": msg.role,
@@ -206,11 +206,11 @@ class LLMClient:
                 })
             return formatted
         elif self.provider == ProviderType.GEMINI:
-            # Gemini uses yet another format
+            # Gemini 使用另一种格式
             contents = []
             for msg in messages:
                 if msg.role == "system":
-                    # Gemini doesn't support system messages directly
+                    # Gemini 不直接支持系统消息
                     continue
                 role = "user" if msg.role in ("user", "function") else "model"
                 contents.append({
@@ -219,7 +219,7 @@ class LLMClient:
                 })
             return contents
         else:
-            # OpenAI-compatible format
+            # OpenAI 兼容格式
             return [
                 {
                     "role": msg.role,
@@ -230,11 +230,11 @@ class LLMClient:
             ]
 
     def _build_payload(self, messages: list[Message], **kwargs: Any) -> dict[str, Any]:
-        """Build API request payload."""
+        """构建 API 请求负载。"""
         formatted = self._format_messages(messages)
 
         if self.provider == ProviderType.ANTHROPIC:
-            # Extract system message
+            # 提取系统消息
             system_msg = None
             for msg in messages:
                 if msg.role == "system":
@@ -253,7 +253,7 @@ class LLMClient:
                 payload["max_tokens"] = self.max_tokens
 
         elif self.provider == ProviderType.GEMINI:
-            # Gemini format
+            # Gemini 格式
             payload = {
                 "contents": formatted,
                 "generationConfig": {
@@ -264,7 +264,7 @@ class LLMClient:
                 payload["generationConfig"]["maxOutputTokens"] = self.max_tokens
 
         else:
-            # OpenAI-compatible format
+            # OpenAI 兼容格式
             payload = {
                 "model": self.model,
                 "messages": formatted,
@@ -273,12 +273,12 @@ class LLMClient:
             if self.max_tokens:
                 payload["max_tokens"] = self.max_tokens
 
-        # Merge additional kwargs
+        # 合并额外的 kwargs
         payload.update(kwargs)
         return payload
 
     def _parse_response(self, data: dict[str, Any]) -> LLMResponse:
-        """Parse API response."""
+        """解析 API 响应。"""
         if self.provider == ProviderType.ANTHROPIC:
             content = data.get("content", [{}])[0].get("text", "")
             usage = data.get("usage", {})
@@ -310,7 +310,7 @@ class LLMClient:
             )
 
         else:
-            # OpenAI-compatible format
+            # OpenAI 兼容格式
             choice = data.get("choices", [{}])[0]
             message = choice.get("message", {})
             usage = data.get("usage", {})
@@ -327,17 +327,17 @@ class LLMClient:
         messages: list[Message],
         **kwargs: Any,
     ) -> LLMResponse:
-        """Send completion request to LLM.
+        """向 LLM 发送补全请求。
 
         Args:
-            messages: List of messages for the conversation
-            **kwargs: Additional parameters to pass to API
+            messages: 对话的消息列表
+            **kwargs: 传递给 API 的额外参数
 
         Returns:
-            LLMResponse with generated content
+            包含生成内容的 LLMResponse
 
         Raises:
-            LLMError: If request fails
+            LLMError: 如果请求失败
         """
         url = self._get_api_url()
         payload = self._build_payload(messages, **kwargs)
@@ -350,33 +350,33 @@ class LLMClient:
                 return self._parse_response(data)
 
             except httpx.HTTPStatusError as e:
-                logger.warning(f"LLM request failed (attempt {attempt + 1}): {e}")
+                logger.warning(f"LLM 请求失败（第 {attempt + 1} 次尝试）: {e}")
                 if attempt == self.max_retries - 1:
-                    raise LLMError(f"LLM request failed: {e.response.text}") from e
+                    raise LLMError(f"LLM 请求失败: {e.response.text}") from e
 
             except Exception as e:
-                logger.warning(f"LLM request error (attempt {attempt + 1}): {e}")
+                logger.warning(f"LLM 请求错误（第 {attempt + 1} 次尝试）: {e}")
                 if attempt == self.max_retries - 1:
-                    raise LLMError(f"LLM request failed: {e}") from e
+                    raise LLMError(f"LLM 请求失败: {e}") from e
 
-        raise LLMError("Max retries exceeded")
+        raise LLMError("超过最大重试次数")
 
     async def stream(
         self,
         messages: list[Message],
         **kwargs: Any,
     ) -> AsyncIterator[LLMStreamChunk]:
-        """Stream completion from LLM.
+        """从 LLM 流式获取补全结果。
 
         Args:
-            messages: List of messages for the conversation
-            **kwargs: Additional parameters
+            messages: 对话的消息列表
+            **kwargs: 额外的参数
 
         Yields:
-            LLMStreamChunk with content chunks
+            包含内容块的 LLMStreamChunk
 
         Raises:
-            LLMError: If request fails
+            LLMError: 如果请求失败
         """
         url = self._get_api_url()
         payload = self._build_payload(messages, **kwargs)
@@ -390,7 +390,7 @@ class LLMClient:
                     if not line.startswith("data: "):
                         continue
 
-                    data = line[6:]  # Remove "data: " prefix
+                    data = line[6:]  # 移除 "data: " 前缀
                     if data == "[DONE]":
                         break
 
@@ -411,14 +411,14 @@ class LLMClient:
                         continue
 
         except Exception as e:
-            raise LLMError(f"Streaming failed: {e}") from e
+            raise LLMError(f"流式传输失败: {e}") from e
 
-        yield LLMChunk(content="", is_finished=True)
+        yield LLMStreamChunk(content="", is_finished=True)
 
     async def close(self) -> None:
-        """Close HTTP client."""
+        """关闭 HTTP 客户端。"""
         await self._client.aclose()
 
     def __repr__(self) -> str:
-        """String representation."""
+        """字符串表示。"""
         return f"LLMClient(provider={self.provider.value}, model={self.model})"

@@ -1,4 +1,4 @@
-"""Entry point for python -m symphony."""
+"""python -m symphony 的入口点。"""
 
 from symphony.cli import main
 

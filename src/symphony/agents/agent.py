@@ -1,6 +1,6 @@
-"""Symphony Agent implementation.
+"""Symphony 智能体实现。
 
-Uses LLMClient to process issues with multi-turn conversations.
+使用 LLMClient 处理多轮对话的问题。
 """
 
 from __future__ import annotations
@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 class AgentError(Exception):
-    """Raised when agent execution fails."""
+    """当智能体执行失败时抛出。"""
 
     pass
 
 
 class SymphonyAgent:
-    """Symphony Agent for processing Linear issues.
+    """用于处理 Linear 问题的 Symphony 智能体。
 
-    Uses LLMClient for multi-turn conversations with tool support.
+    使用 LLMClient 进行支持工具的多轮对话。
 
-    Example:
+    示例:
         >>> agent = SymphonyAgent(llm_client, prompt_builder)
         >>> result = await agent.run(issue, workspace_path, max_turns=20)
     """
@@ -39,12 +39,12 @@ class SymphonyAgent:
         prompt_builder: PromptBuilder,
         tools: dict[str, callable] | None = None,
     ) -> None:
-        """Initialize agent.
+        """初始化智能体。
 
-        Args:
-            llm_client: LLM client for completions
-            prompt_builder: Prompt builder for generating prompts
-            tools: Optional dict of tool functions
+        参数:
+            llm_client: 用于补全的 LLM 客户端
+            prompt_builder: 用于生成提示词的提示词构建器
+            tools: 可选的工具函数字典
         """
         self.llm_client = llm_client
         self.prompt_builder = prompt_builder
@@ -58,23 +58,23 @@ class SymphonyAgent:
         max_turns: int = 20,
         attempt: int | None = None,
     ) -> dict[str, Any]:
-        """Run agent on an issue.
+        """在问题上运行智能体。
 
-        Args:
-            issue: Issue to process
-            workspace_path: Workspace directory path
-            max_turns: Maximum conversation turns
-            attempt: Retry attempt number
+        参数:
+            issue: 要处理的问题
+            workspace_path: 工作空间目录路径
+            max_turns: 最大对话轮数
+            attempt: 重试尝试次数
 
-        Returns:
-            Dict with execution results
+        返回:
+            包含执行结果的字典
         """
-        logger.info(f"Starting agent run for {issue.identifier}")
+        logger.info(f"正在为 {issue.identifier} 启动智能体运行")
 
-        # Initialize conversation
+        # 初始化对话
         self.messages = []
 
-        # Build initial prompt
+        # 构建初始提示词
         system_prompt = self._build_system_prompt(workspace_path)
         user_prompt = self.prompt_builder.build_prompt(issue, attempt, turn_number=1)
 
@@ -86,55 +86,55 @@ class SymphonyAgent:
 
         while turn_count < max_turns:
             turn_count += 1
-            logger.debug(f"Turn {turn_count}/{max_turns}")
+            logger.debug(f"第 {turn_count}/{max_turns} 轮")
 
             try:
-                # Get LLM response
+                # 获取 LLM 响应
                 response = await self.llm_client.complete(self.messages)
 
-                # Track tokens
+                # 跟踪令牌使用量
                 usage = response.usage
                 total_tokens["prompt"] += usage.get("prompt_tokens", 0)
                 total_tokens["completion"] += usage.get("completion_tokens", 0)
 
-                # Add assistant response to conversation
+                # 将助手响应添加到对话
                 self.messages.append(
                     Message(role="assistant", content=response.content)
                 )
 
-                # Check if agent wants to use tools
+                # 检查智能体是否想要使用工具
                 tool_calls = self._extract_tool_calls(response.content)
 
                 if tool_calls:
-                    # Execute tools
+                    # 执行工具
                     tool_results = await self._execute_tools(tool_calls, workspace_path)
 
-                    # Add tool results to conversation
+                    # 将工具结果添加到对话
                     for result in tool_results:
                         self.messages.append(
                             Message(
                                 role="user",
-                                content=f"Tool result: {result}",
+                                content=f"工具结果: {result}",
                             )
                         )
                 else:
-                    # No tool calls, check if done
+                    # 没有工具调用，检查是否完成
                     if self._is_done(response.content):
-                        logger.info(f"Agent completed after {turn_count} turns")
+                        logger.info(f"智能体在第 {turn_count} 轮后完成")
                         break
 
-                    # Continue conversation
+                    # 继续对话
                     self.messages.append(
                         Message(
                             role="user",
-                            content="Continue working on the task. "
-                                    "Use tools if needed, or indicate when done.",
+                            content="继续处理任务。"
+                                    "如有需要请使用工具，或指示何时完成。",
                         )
                     )
 
             except Exception as e:
-                logger.exception(f"Turn {turn_count} failed: {e}")
-                raise AgentError(f"Agent execution failed at turn {turn_count}: {e}") from e
+                logger.exception(f"第 {turn_count} 轮失败: {e}")
+                raise AgentError(f"智能体执行在第 {turn_count} 轮失败: {e}") from e
 
         return {
             "success": True,
@@ -144,7 +144,7 @@ class SymphonyAgent:
         }
 
     def _build_system_prompt(self, workspace_path: Path) -> str:
-        """Build system prompt with context."""
+        """构建带上下文的系统提示词。"""
         return f"""You are a software engineering agent working on a Linear issue.
 
 Workspace: {workspace_path}
@@ -172,10 +172,10 @@ Always use tools through the proper format:
 """
 
     def _extract_tool_calls(self, content: str) -> list[dict[str, Any]]:
-        """Extract tool calls from LLM response."""
+        """从 LLM 响应中提取工具调用。"""
         tool_calls = []
 
-        # Look for tool call blocks
+        # 查找工具调用块
         import re
         pattern = r'```tool\s*\n(.*?)\n```'
         matches = re.findall(pattern, content, re.DOTALL)
@@ -186,7 +186,7 @@ Always use tools through the proper format:
                 if "name" in tool_call and "arguments" in tool_call:
                     tool_calls.append(tool_call)
             except json.JSONDecodeError:
-                logger.warning(f"Failed to parse tool call: {match}")
+                logger.warning(f"解析工具调用失败: {match}")
 
         return tool_calls
 
@@ -195,7 +195,7 @@ Always use tools through the proper format:
         tool_calls: list[dict[str, Any]],
         workspace_path: Path,
     ) -> list[str]:
-        """Execute tool calls."""
+        """执行工具调用。"""
         results = []
 
         for call in tool_calls:
@@ -204,7 +204,7 @@ Always use tools through the proper format:
 
             if tool_name in self.tools:
                 try:
-                    # Add workspace to arguments
+                    # 将工作空间添加到参数
                     arguments["_workspace"] = str(workspace_path)
 
                     result = await self.tools[tool_name](**arguments)
@@ -212,13 +212,13 @@ Always use tools through the proper format:
                 except Exception as e:
                     results.append(json.dumps({"success": False, "error": str(e)}))
             else:
-                results.append(json.dumps({"success": False, "error": f"Unknown tool: {tool_name}"}))
+                results.append(json.dumps({"success": False, "error": f"未知工具: {tool_name}"}))
 
         return results
 
     def _is_done(self, content: str) -> bool:
-        """Check if agent indicates task completion."""
-        # Look for completion indicators
+        """检查智能体是否指示任务完成。"""
+        # 查找完成标记
         done_markers = [
             "task completed",
             "finished",
@@ -229,14 +229,14 @@ Always use tools through the proper format:
         return any(marker in content_lower for marker in done_markers)
 
     def _messages_to_dicts(self) -> list[dict[str, str]]:
-        """Convert messages to dicts."""
+        """将消息转换为字典。"""
         return [
             {"role": msg.role, "content": msg.content}
             for msg in self.messages
         ]
 
     async def run_turn(self) -> str:
-        """Run a single turn and return response content."""
+        """运行单轮并返回响应内容。"""
         response = await self.llm_client.complete(self.messages)
         self.messages.append(Message(role="assistant", content=response.content))
         return response.content

@@ -1,6 +1,6 @@
-"""Configuration module for Symphony.
+"""Symphony 配置模块。
 
-Provides configuration loading, validation, and management.
+提供配置加载、验证和管理功能。
 """
 
 from symphony.config.config import Config

@@ -1,6 +1,6 @@
-"""Workspace management module.
+"""工作空间管理模块。
 
-Handles creation, validation, and lifecycle of per-issue workspaces.
+处理每个 Issue 的工作空间的创建、验证和生命周期管理。
 """
 
 from symphony.workspace.manager import WorkspaceManager

@@ -1,4 +1,4 @@
-"""Doctor command for Symphony - Environment diagnostics."""
+"""Symphony 的 doctor 命令 - 环境诊断。"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ console = Console()
 
 
 async def check_llm_provider(provider: str, api_key: str | None, base_url: str | None) -> dict:
-    """Check LLM provider connectivity."""
+    """检查 LLM 提供商连接。"""
     result = {"name": provider, "status": "unknown", "message": ""}
     
     if not api_key:
@@ -29,7 +29,7 @@ async def check_llm_provider(provider: str, api_key: str | None, base_url: str |
         result["message"] = "API key not set"
         return result
     
-    # Provider-specific health checks
+    # 特定提供商的健康检查
     try:
         if provider == "openai":
             url = base_url or "https://api.openai.com/v1/models"
@@ -77,7 +77,7 @@ async def check_llm_provider(provider: str, api_key: str | None, base_url: str |
                     result["message"] = f"HTTP {response.status_code}"
                     
         elif provider == "gemini":
-            # Gemini uses a different API structure
+            # Gemini 使用不同的 API 结构
             url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url)
@@ -108,7 +108,7 @@ async def check_llm_provider(provider: str, api_key: str | None, base_url: str |
 
 
 async def check_linear(api_key: str | None) -> dict:
-    """Check Linear API connectivity."""
+    """检查 Linear API 连接。"""
     result = {"name": "Linear", "status": "unknown", "message": ""}
     
     if not api_key:
@@ -162,10 +162,10 @@ async def check_linear(api_key: str | None) -> dict:
 
 
 def check_system_requirements() -> list[dict]:
-    """Check system requirements."""
+    """检查系统要求。"""
     results = []
     
-    # Python version
+    # Python 版本
     py_version = sys.version_info
     if py_version >= (3, 12):
         results.append({
@@ -180,7 +180,7 @@ def check_system_requirements() -> list[dict]:
             "message": f"{py_version.major}.{py_version.minor}.{py_version.micro} (requires 3.12+)"
         })
     
-    # Disk space
+    # 磁盘空间
     try:
         stat = shutil.disk_usage(".")
         free_gb = stat.free / (1024**3)
@@ -203,7 +203,7 @@ def check_system_requirements() -> list[dict]:
             "message": str(e)
         })
     
-    # Platform
+    # 平台
     results.append({
         "name": "Platform",
         "status": "ok",
@@ -221,40 +221,40 @@ def check_system_requirements() -> list[dict]:
     help="Path to .env file",
 )
 def doctor_command(env_file: Path | None) -> None:
-    """Run environment diagnostics.
+    """运行环境诊断。
     
-    Checks connectivity to LLM providers, Linear API, and system requirements.
+    检查 LLM 提供商、Linear API 和系统要求的连接性。
     """
     console.print(Panel.fit(
         "[bold cyan]🏥 Symphony Environment Diagnostics[/bold cyan]",
         border_style="cyan"
     ))
     
-    # Load environment variables
+    # 加载环境变量
     if env_file:
         from dotenv import load_dotenv
         load_dotenv(env_file)
     else:
-        # Try to load from default locations
+        # 尝试从默认位置加载
         for env_path in [".env", ".env.local"]:
             if Path(env_path).exists():
                 from dotenv import load_dotenv
                 load_dotenv(env_path)
                 break
     
-    # System checks
+    # 系统检查
     console.print("\n[bold]System Requirements[/bold]")
     system_results = check_system_requirements()
     for result in system_results:
         _print_result(result)
     
-    # API checks (async)
+    # API 检查（异步）
     console.print("\n[bold]API Connectivity[/bold]")
     
     async def run_api_checks():
         checks = []
         
-        # Check all configured providers
+        # 检查所有配置的提供商
         providers = [
             ("openai", os.environ.get("OPENAI_API_KEY"), os.environ.get("OPENAI_BASE_URL")),
             ("anthropic", os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("ANTHROPIC_BASE_URL")),
@@ -263,11 +263,11 @@ def doctor_command(env_file: Path | None) -> None:
         ]
         
         for provider, key, base_url in providers:
-            if key:  # Only check if key is set
+            if key:  # 仅在密钥设置时检查
                 result = await check_llm_provider(provider, key, base_url)
                 checks.append(result)
         
-        # Linear check
+        # Linear 检查
         linear_result = await check_linear(os.environ.get("LINEAR_API_KEY"))
         checks.append(linear_result)
         
@@ -286,7 +286,7 @@ def doctor_command(env_file: Path | None) -> None:
     for result in api_results:
         _print_result(result)
     
-    # Summary
+    # 摘要
     console.print()
     
     all_ok = all(r["status"] == "ok" for r in system_results + api_results)
@@ -316,7 +316,7 @@ def doctor_command(env_file: Path | None) -> None:
 
 
 def _print_result(result: dict) -> None:
-    """Print a check result."""
+    """打印检查结果。"""
     status = result["status"]
     name = result["name"]
     message = result["message"]

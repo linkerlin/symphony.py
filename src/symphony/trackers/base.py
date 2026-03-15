@@ -1,6 +1,6 @@
-"""Base class for issue tracker adapters.
+"""问题跟踪器适配器的基类。
 
-Defines the interface that all tracker implementations must follow.
+定义所有跟踪器实现必须遵循的接口。
 """
 
 from __future__ import annotations
@@ -12,92 +12,91 @@ from symphony.models.issue import Issue
 
 
 class TrackerError(Exception):
-    """Raised when tracker operation fails."""
+    """当跟踪器操作失败时抛出。"""
 
     pass
 
 
 class BaseTracker(ABC):
-    """Abstract base class for issue trackers.
+    """问题跟踪器的抽象基类。
 
-    All tracker implementations must inherit from this class
-    and implement the required methods.
+    所有跟踪器实现必须继承自此类并实现所需的方法。
     """
 
     @abstractmethod
     async def fetch_candidate_issues(self) -> list[Issue]:
-        """Fetch issues in active states that are candidates for dispatch.
+        """获取处于活跃状态、可作为分派候选的问题。
 
-        Returns:
-            List of Issue objects
+        返回:
+            Issue 对象列表
 
-        Raises:
-            TrackerError: If fetch fails
+        抛出:
+            TrackerError: 如果获取失败
         """
         pass
 
     @abstractmethod
     async def fetch_issues_by_states(self, states: list[str]) -> list[Issue]:
-        """Fetch issues in specific states.
+        """获取特定状态的问题。
 
-        Args:
-            states: List of state names to fetch
+        参数:
+            states: 要获取的状态名称列表
 
-        Returns:
-            List of Issue objects
+        返回:
+            Issue 对象列表
 
-        Raises:
-            TrackerError: If fetch fails
+        抛出:
+            TrackerError: 如果获取失败
         """
         pass
 
     @abstractmethod
     async def fetch_issue_states_by_ids(self, issue_ids: list[str]) -> list[Issue]:
-        """Fetch current states for specific issue IDs.
+        """获取特定问题 ID 的当前状态。
 
-        Used for reconciliation to check if running issues have changed state.
+        用于对账检查，确认运行中的问题是否已改变状态。
 
-        Args:
-            issue_ids: List of issue IDs to fetch
+        参数:
+            issue_ids: 要获取的问题 ID 列表
 
-        Returns:
-            List of Issue objects with current state
+        返回:
+            包含当前状态的 Issue 对象列表
 
-        Raises:
-            TrackerError: If fetch fails
+        抛出:
+            TrackerError: 如果获取失败
         """
         pass
 
     @abstractmethod
     async def create_comment(self, issue_id: str, body: str) -> None:
-        """Create a comment on an issue.
+        """在问题上创建评论。
 
-        Args:
-            issue_id: Issue ID to comment on
-            body: Comment body text
+        参数:
+            issue_id: 要评论的问题 ID
+            body: 评论正文文本
 
-        Raises:
-            TrackerError: If comment creation fails
+        抛出:
+            TrackerError: 如果评论创建失败
         """
         pass
 
     @abstractmethod
     async def update_issue_state(self, issue_id: str, state_name: str) -> None:
-        """Update the state of an issue.
+        """更新问题的状态。
 
-        Args:
-            issue_id: Issue ID to update
-            state_name: New state name
+        参数:
+            issue_id: 要更新的问题 ID
+            state_name: 新状态名称
 
-        Raises:
-            TrackerError: If update fails
+        抛出:
+            TrackerError: 如果更新失败
         """
         pass
 
     async def health_check(self) -> dict[str, Any]:
-        """Check tracker connectivity and health.
+        """检查跟踪器的连接和健康状态。
 
-        Returns:
-            Dictionary with health status information
+        返回:
+            包含健康状态信息的字典
         """
         return {"healthy": True, "tracker": self.__class__.__name__}

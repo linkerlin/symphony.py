@@ -1,6 +1,6 @@
-"""Prompt builder for Symphony.
+"""Symphony 的提示词构建器。
 
-Builds agent prompts from workflow templates and issue data.
+从工作流模板和问题数据构建智能体提示词。
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from symphony.workflow.loader import WorkflowLoader
 logger = logging.getLogger(__name__)
 
 
-# Default prompt template if workflow has empty body
+# 当工作流正文为空时使用的默认提示词模板
 DEFAULT_PROMPT_TEMPLATE = """You are working on a Linear issue.
 
 Identifier: {{ issue.identifier }}
@@ -34,46 +34,46 @@ Please analyze this issue and implement the necessary changes.
 
 
 class PromptBuilder:
-    """Builds prompts from templates and issue data.
+    """从模板和问题数据构建提示词。
 
-    Uses Jinja2 for template rendering with strict variable checking.
+    使用 Jinja2 进行模板渲染，并启用严格的变量检查。
     """
 
     def __init__(self, template: str | None = None) -> None:
-        """Initialize prompt builder.
+        """初始化提示词构建器。
 
-        Args:
-            template: Jinja2 template string, or None to use default
+        参数:
+            template: Jinja2 模板字符串，若为 None 则使用默认模板
         """
         self.template_str = template or DEFAULT_PROMPT_TEMPLATE
         self._template: Template | None = None
 
     @classmethod
     def from_workflow(cls, workflow_path: str | Path) -> "PromptBuilder":
-        """Create builder from workflow file.
+        """从工作流文件创建构建器。
 
-        Args:
-            workflow_path: Path to WORKFLOW.md file
+        参数:
+            workflow_path: WORKFLOW.md 文件的路径
 
-        Returns:
-            Configured PromptBuilder
+        返回:
+            配置好的 PromptBuilder
         """
         loader = WorkflowLoader()
         result = loader.load(workflow_path)
 
         if result.error:
-            logger.warning(f"Failed to load workflow, using default: {result.error}")
+            logger.warning(f"加载工作流失败，使用默认模板: {result.error}")
             return cls()
 
         template = result.prompt_template
         if not template or not template.strip():
-            logger.debug("Empty prompt template, using default")
+            logger.debug("提示词模板为空，使用默认模板")
             return cls()
 
         return cls(template)
 
     def _get_template(self) -> Template:
-        """Get or compile Jinja2 template."""
+        """获取或编译 Jinja2 模板。"""
         if self._template is None:
             self._template = Template(
                 self.template_str,
@@ -90,23 +90,23 @@ class PromptBuilder:
         turn_number: int = 1,
         max_turns: int = 20,
     ) -> str:
-        """Build prompt for an issue.
+        """为一个问题构建提示词。
 
-        Args:
-            issue: Issue to build prompt for
-            attempt: Retry attempt number (None for first run)
-            turn_number: Current turn number (1-based)
-            max_turns: Maximum turns allowed
+        参数:
+            issue: 要构建提示词的问题
+            attempt: 重试尝试次数（首次运行为 None）
+            turn_number: 当前轮次编号（从 1 开始）
+            max_turns: 允许的最大轮次数
 
-        Returns:
-            Rendered prompt string
+        返回:
+            渲染后的提示词字符串
 
-        Raises:
-            ValueError: If template rendering fails
+        抛出:
+            ValueError: 如果模板渲染失败
         """
         template = self._get_template()
 
-        # Build context for template
+        # 构建模板的上下文
         context = {
             "issue": issue.to_prompt_dict(),
             "attempt": attempt,
@@ -119,9 +119,9 @@ class PromptBuilder:
         try:
             return template.render(**context)
         except UndefinedError as e:
-            raise ValueError(f"Template variable undefined: {e}") from e
+            raise ValueError(f"模板变量未定义: {e}") from e
         except Exception as e:
-            raise ValueError(f"Template rendering failed: {e}") from e
+            raise ValueError(f"模板渲染失败: {e}") from e
 
     def build_continuation_prompt(
         self,
@@ -129,15 +129,15 @@ class PromptBuilder:
         turn_number: int,
         max_turns: int,
     ) -> str:
-        """Build continuation prompt for subsequent turns.
+        """为后续轮次构建继续提示词。
 
-        Args:
-            issue: Issue being processed
-            turn_number: Current turn number
-            max_turns: Maximum turns allowed
+        参数:
+            issue: 正在处理的问题
+            turn_number: 当前轮次编号
+            max_turns: 允许的最大轮次数
 
-        Returns:
-            Continuation prompt string
+        返回:
+            继续提示词字符串
         """
         return f"""Continuation guidance:
 
@@ -149,5 +149,5 @@ class PromptBuilder:
 """
 
     def get_template(self) -> str:
-        """Get the raw template string."""
+        """获取原始模板字符串。"""
         return self.template_str

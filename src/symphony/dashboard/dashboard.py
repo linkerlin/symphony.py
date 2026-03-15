@@ -1,6 +1,6 @@
-"""Terminal dashboard for Symphony.
+"""Symphony 终端仪表板。
 
-Uses rich library to display real-time status of agents and LLM usage.
+使用 rich 库显示智能体和 LLM 使用情况的实时状态。
 """
 
 from __future__ import annotations
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 class Dashboard:
-    """Terminal dashboard for Symphony.
+    """Symphony 终端仪表板。
 
-    Displays:
-    - Running agents with status
-    - LLM token usage statistics
-    - Retry queue
-    - System status
+    显示内容：
+    - 运行中的智能体及其状态
+    - LLM 令牌使用统计
+    - 重试队列
+    - 系统状态
     """
 
     def __init__(
@@ -40,12 +40,12 @@ class Dashboard:
         config: Config,
         refresh_interval: float = 1.0,
     ) -> None:
-        """Initialize dashboard.
+        """初始化仪表板。
 
-        Args:
-            orchestrator: Orchestrator instance to monitor
-            config: Configuration instance
-            refresh_interval: Refresh interval in seconds
+        参数：
+            orchestrator: 要监控的协调器实例
+            config: 配置实例
+            refresh_interval: 刷新间隔（秒）
         """
         self.orchestrator = orchestrator
         self.config = config
@@ -55,12 +55,12 @@ class Dashboard:
         self._task: asyncio.Task | None = None
 
     async def start(self) -> None:
-        """Start the dashboard display."""
+        """启动仪表板显示。"""
         if self._running:
             return
 
         self._running = True
-        logger.info("Starting dashboard")
+        logger.info("正在启动仪表板")
 
         try:
             with Live(
@@ -73,33 +73,33 @@ class Dashboard:
                     live.update(self._render())
                     await asyncio.sleep(self.refresh_interval)
         except Exception as e:
-            logger.exception(f"Dashboard error: {e}")
+            logger.exception(f"仪表板错误: {e}")
         finally:
             self._running = False
 
     def stop(self) -> None:
-        """Stop the dashboard."""
+        """停止仪表板。"""
         self._running = False
-        logger.info("Dashboard stopped")
+        logger.info("仪表板已停止")
 
     def _render(self) -> Layout:
-        """Render the dashboard layout."""
+        """渲染仪表板布局。"""
         layout = Layout()
 
-        # Split into header, main, and footer
+        # 分割为页眉、主体和页脚
         layout.split_column(
             Layout(name="header", size=3),
             Layout(name="main", ratio=1),
             Layout(name="footer", size=3),
         )
 
-        # Split main into left and right
+        # 将主体分割为左右两部分
         layout["main"].split_row(
             Layout(name="left", ratio=2),
             Layout(name="right", ratio=1),
         )
 
-        # Render sections
+        # 渲染各个区域
         layout["header"].update(self._render_header())
         layout["left"].update(self._render_agents())
         layout["right"].update(self._render_stats())
@@ -108,7 +108,7 @@ class Dashboard:
         return layout
 
     def _render_header(self) -> Panel:
-        """Render header section."""
+        """渲染页眉区域。"""
         state = self.orchestrator.get_state()
         settings = self.config.settings
 
@@ -119,19 +119,19 @@ class Dashboard:
         text.append("🎼 ", style="bold magenta")
         text.append("Symphony", style="bold cyan")
         text.append(f" | LLM: {llm_info}", style="dim")
-        text.append(f" | Project: {project}", style="dim")
-        text.append(f" | Slots: {state.available_slots}/{state.max_concurrent_agents}", style="green")
+        text.append(f" | 项目: {project}", style="dim")
+        text.append(f" | 槽位: {state.available_slots}/{state.max_concurrent_agents}", style="green")
 
         return Panel(text, border_style="cyan")
 
     def _render_agents(self) -> Panel:
-        """Render running agents section."""
+        """渲染运行中的智能体区域。"""
         state = self.orchestrator.get_state()
 
         if not state.running:
             return Panel(
-                Text("No active agents", style="dim"),
-                title="[bold blue]Running Agents[/bold blue]",
+                Text("无活动智能体", style="dim"),
+                title="[bold blue]运行中的智能体[/bold blue]",
                 border_style="blue",
             )
 
@@ -141,24 +141,24 @@ class Dashboard:
             expand=True,
             box=None,
         )
-        table.add_column("Issue", style="cyan", width=15)
-        table.add_column("State", style="yellow", width=12)
-        table.add_column("Turn", justify="right", width=6)
-        table.add_column("Tokens", justify="right", width=10)
-        table.add_column("Runtime", justify="right", width=10)
-        table.add_column("Status", style="green")
+        table.add_column("事项", style="cyan", width=15)
+        table.add_column("状态", style="yellow", width=12)
+        table.add_column("轮次", justify="right", width=6)
+        table.add_column("令牌数", justify="right", width=10)
+        table.add_column("运行时间", justify="right", width=10)
+        table.add_column("状态信息", style="green")
 
         for entry in state.running.values():
             issue = entry.issue
             session = entry.session_state
 
             runtime = session.get_runtime_seconds()
-            runtime_str = f"{int(runtime // 60)}m {int(runtime % 60)}s"
+            runtime_str = f"{int(runtime // 60)}分 {int(runtime % 60)}秒"
 
             tokens = session.llm_usage.total_tokens
             tokens_str = f"{tokens:,}" if tokens > 0 else "-"
 
-            status = session.last_event or "running"
+            status = session.last_event or "运行中"
             status_style = "green" if session.is_active() else "red"
 
             table.add_row(
@@ -172,75 +172,75 @@ class Dashboard:
 
         return Panel(
             table,
-            title=f"[bold blue]Running Agents ({len(state.running)})[/bold blue]",
+            title=f"[bold blue]运行中的智能体 ({len(state.running)})[/bold blue]",
             border_style="blue",
         )
 
     def _render_stats(self) -> Panel:
-        """Render statistics section."""
+        """渲染统计信息区域。"""
         state = self.orchestrator.get_state()
         totals = state.llm_totals
 
-        # LLM Usage
+        # LLM 使用情况
         usage_table = Table(show_header=False, box=None, expand=True)
-        usage_table.add_column("Metric", style="cyan")
-        usage_table.add_column("Value", justify="right")
+        usage_table.add_column("指标", style="cyan")
+        usage_table.add_column("数值", justify="right")
 
-        usage_table.add_row("Prompt Tokens", f"{totals.prompt_tokens:,}")
-        usage_table.add_row("Completion Tokens", f"{totals.completion_tokens:,}")
-        usage_table.add_row("Total Tokens", f"{totals.total_tokens:,}")
+        usage_table.add_row("提示令牌数", f"{totals.prompt_tokens:,}")
+        usage_table.add_row("补全令牌数", f"{totals.completion_tokens:,}")
+        usage_table.add_row("总令牌数", f"{totals.total_tokens:,}")
 
         hours = int(totals.seconds_running // 3600)
         minutes = int((totals.seconds_running % 3600) // 60)
-        usage_table.add_row("Runtime", f"{hours}h {minutes}m")
+        usage_table.add_row("运行时间", f"{hours}小时 {minutes}分")
 
-        # Queue info
+        # 队列信息
         queue_table = Table(show_header=False, box=None, expand=True)
-        queue_table.add_column("Queue", style="cyan")
-        queue_table.add_column("Count", justify="right")
+        queue_table.add_column("队列", style="cyan")
+        queue_table.add_column("数量", justify="right")
 
-        queue_table.add_row("Running", str(len(state.running)))
-        queue_table.add_row("Retrying", str(len(state.retry_attempts)))
-        queue_table.add_row("Claimed", str(len(state.claimed)))
-        queue_table.add_row("Completed", str(len(state.completed)))
+        queue_table.add_row("运行中", str(len(state.running)))
+        queue_table.add_row("重试中", str(len(state.retry_attempts)))
+        queue_table.add_row("已认领", str(len(state.claimed)))
+        queue_table.add_row("已完成", str(len(state.completed)))
 
-        # Combine
+        # 组合显示
         content = Group(
-            Text("LLM Usage", style="bold yellow"),
+            Text("LLM 使用情况", style="bold yellow"),
             usage_table,
             Text(""),
-            Text("Queue Status", style="bold yellow"),
+            Text("队列状态", style="bold yellow"),
             queue_table,
         )
 
-        return Panel(content, title="[bold green]Statistics[/bold green]", border_style="green")
+        return Panel(content, title="[bold green]统计信息[/bold green]", border_style="green")
 
     def _render_footer(self) -> Panel:
-        """Render footer section."""
+        """渲染页脚区域。"""
         state = self.orchestrator.get_state()
 
-        # Retry queue info
+        # 重试队列信息
         retry_texts = []
         for entry in list(state.retry_attempts.values())[:3]:
             due = max(0, int(entry.due_in_seconds))
-            retry_texts.append(f"{entry.identifier} in {due}s")
+            retry_texts.append(f"{entry.identifier} 将在 {due} 秒后重试")
 
         text = Text()
-        text.append(f"⏳ Next refresh: {int(self.refresh_interval)}s | ", style="dim")
+        text.append(f"⏳ 下次刷新: {int(self.refresh_interval)}秒 | ", style="dim")
 
         if retry_texts:
-            text.append("Retrying: " + ", ".join(retry_texts), style="yellow")
+            text.append("重试队列: " + ", ".join(retry_texts), style="yellow")
         else:
-            text.append("No retries queued", style="dim")
+            text.append("无重试队列", style="dim")
 
         return Panel(text, border_style="dim")
 
     async def run_in_background(self) -> None:
-        """Run dashboard in background alongside orchestrator."""
+        """在后台与协调器一起运行仪表板。"""
         dashboard_task = asyncio.create_task(self.start())
 
         try:
-            # Wait for orchestrator to stop
+            # 等待协调器停止
             while self.orchestrator._running:
                 await asyncio.sleep(0.5)
         finally:

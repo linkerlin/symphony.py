@@ -1,6 +1,6 @@
-"""Workflow management module.
+"""工作流管理模块。
 
-Handles loading and parsing of WORKFLOW.md files.
+处理 WORKFLOW.md 文件的加载和解析。
 """
 
 from symphony.workflow.loader import WorkflowLoadResult, WorkflowLoader

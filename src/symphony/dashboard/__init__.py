@@ -1,6 +1,6 @@
-"""Dashboard module for Symphony.
+"""Symphony 仪表板模块。
 
-Provides terminal UI for monitoring agent status.
+提供用于监控智能体状态的终端 UI。
 """
 
 from symphony.dashboard.dashboard import Dashboard

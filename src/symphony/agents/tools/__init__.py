@@ -1,6 +1,6 @@
-"""Tools for Symphony Agent.
+"""Symphony Agent 工具。
 
-Provides tools for file operations, command execution, etc.
+提供文件操作、命令执行等工具。
 """
 
 from symphony.agents.tools.file_tools import read_file, write_file

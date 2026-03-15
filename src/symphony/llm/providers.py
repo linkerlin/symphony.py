@@ -1,6 +1,6 @@
-"""LLM provider types and configurations.
+"""LLM 提供商类型和配置。
 
-Defines supported LLM providers and their default configurations.
+定义支持的 LLM 提供商及其默认配置。
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from typing import Any
 
 
 class ProviderType(str, Enum):
-    """Supported LLM provider types."""
+    """支持的 LLM 提供商类型。"""
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
@@ -19,7 +19,7 @@ class ProviderType(str, Enum):
     AZURE = "azure"
 
 
-# Default configurations for each provider
+# 每个提供商的默认配置
 PROVIDER_DEFAULTS: dict[ProviderType, dict[str, Any]] = {
     ProviderType.OPENAI: {
         "base_url": None,
@@ -45,12 +45,12 @@ PROVIDER_DEFAULTS: dict[ProviderType, dict[str, Any]] = {
     ProviderType.GEMINI: {
         "base_url": "https://generativelanguage.googleapis.com",
         "model": "gemini-pro",
-        "supports_system_message": False,  # Gemini uses different format
+        "supports_system_message": False,  # Gemini 使用不同的格式
         "supports_functions": True,
         "supports_json_mode": False,
     },
     ProviderType.AZURE: {
-        "base_url": None,  # Must be provided
+        "base_url": None,  # 必须提供
         "model": "gpt-4",
         "supports_system_message": True,
         "supports_functions": True,
@@ -58,7 +58,7 @@ PROVIDER_DEFAULTS: dict[ProviderType, dict[str, Any]] = {
     },
 }
 
-# Environment variable mappings for each provider
+# 每个提供商的环境变量映射
 PROVIDER_ENV_VARS: dict[ProviderType, dict[str, str]] = {
     ProviderType.OPENAI: {
         "api_key": "OPENAI_API_KEY",
@@ -89,24 +89,24 @@ PROVIDER_ENV_VARS: dict[ProviderType, dict[str, str]] = {
 
 
 def get_provider_defaults(provider: ProviderType) -> dict[str, Any]:
-    """Get default configuration for a provider.
+    """获取提供商的默认配置。
 
     Args:
-        provider: Provider type
+        provider: 提供商类型
 
     Returns:
-        Dictionary with default configuration
+        包含默认配置的字典
     """
     return PROVIDER_DEFAULTS.get(provider, {}).copy()
 
 
 def get_provider_env_vars(provider: ProviderType) -> dict[str, str]:
-    """Get environment variable names for a provider.
+    """获取提供商的环境变量名称。
 
     Args:
-        provider: Provider type
+        provider: 提供商类型
 
     Returns:
-        Dictionary mapping config keys to env var names
+        将配置键映射到环境变量名称的字典
     """
     return PROVIDER_ENV_VARS.get(provider, {}).copy()

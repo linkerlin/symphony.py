@@ -1,6 +1,6 @@
-"""Linear issue tracker implementation.
+"""Linear 问题跟踪器实现。
 
-Provides GraphQL API client for Linear integration.
+为 Linear 集成提供 GraphQL API 客户端。
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from symphony.trackers.base import BaseTracker, TrackerError
 
 logger = logging.getLogger(__name__)
 
-# GraphQL queries
+# GraphQL 查询
 QUERY_CANDIDATE_ISSUES = """
 query SymphonyLinearPoll($projectSlug: String!, $stateNames: [String!]!, $first: Int!, $relationFirst: Int!, $after: String) {
   issues(filter: {project: {slugId: {eq: $projectSlug}}, state: {name: {in: $stateNames}}}, first: $first, after: $after) {
@@ -129,9 +129,9 @@ mutation SymphonyUpdateState($issueId: String!, $stateId: String!) {
 
 
 class LinearTracker(BaseTracker):
-    """Linear issue tracker client.
+    """Linear 问题跟踪器客户端。
 
-    Implements the BaseTracker interface for Linear's GraphQL API.
+    为 Linear 的 GraphQL API 实现 BaseTracker 接口。
     """
 
     PAGE_SIZE = 50
@@ -146,15 +146,15 @@ class LinearTracker(BaseTracker):
         terminal_states: list[str] | None = None,
         assignee: str | None = None,
     ) -> None:
-        """Initialize Linear tracker.
+        """初始化 Linear 跟踪器。
 
-        Args:
-            api_key: Linear API key
-            project_slug: Linear project slug
-            endpoint: GraphQL endpoint URL
-            active_states: List of active state names
-            terminal_states: List of terminal state names
-            assignee: Filter by assignee ("me" for current user)
+        参数:
+            api_key: Linear API 密钥
+            project_slug: Linear 项目标识
+            endpoint: GraphQL 端点 URL
+            active_states: 活跃状态名称列表
+            terminal_states: 终止状态名称列表
+            assignee: 按负责人筛选（"me" 表示当前用户）
         """
         self.api_key = api_key
         self.project_slug = project_slug
@@ -175,7 +175,7 @@ class LinearTracker(BaseTracker):
         )
 
     async def close(self) -> None:
-        """Close HTTP client."""
+        """关闭 HTTP 客户端。"""
         await self._client.aclose()
 
     async def _execute(
@@ -183,17 +183,17 @@ class LinearTracker(BaseTracker):
         query: str,
         variables: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Execute a GraphQL query.
+        """执行 GraphQL 查询。
 
-        Args:
-            query: GraphQL query string
-            variables: Query variables
+        参数:
+            query: GraphQL 查询字符串
+            variables: 查询变量
 
-        Returns:
-            Response data
+        返回:
+            响应数据
 
-        Raises:
-            TrackerError: If request fails
+        抛出:
+            TrackerError: 如果请求失败
         """
         payload = {
             "query": query,
@@ -204,37 +204,37 @@ class LinearTracker(BaseTracker):
             response = await self._client.post(self.endpoint, json=payload)
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            raise TrackerError(f"Linear API error: {e.response.status_code}") from e
+            raise TrackerError(f"Linear API 错误: {e.response.status_code}") from e
         except httpx.RequestError as e:
-            raise TrackerError(f"Linear API request failed: {e}") from e
+            raise TrackerError(f"Linear API 请求失败: {e}") from e
 
         data = response.json()
 
         if "errors" in data:
             errors = data["errors"]
-            raise TrackerError(f"Linear GraphQL errors: {errors}")
+            raise TrackerError(f"Linear GraphQL 错误: {errors}")
 
         return data.get("data", {})
 
     def _normalize_issue(self, issue_data: dict[str, Any]) -> Issue:
-        """Normalize Linear API issue data to Issue model.
+        """将 Linear API 问题数据规范化为 Issue 模型。
 
-        Args:
-            issue_data: Raw issue data from Linear API
+        参数:
+            issue_data: Linear API 返回的原始问题数据
 
-        Returns:
-            Normalized Issue object
+        返回:
+            规范化后的 Issue 对象
         """
-        # Extract state name
+        # 提取状态名称
         state_data = issue_data.get("state", {}) or {}
         state_name = state_data.get("name", "")
 
-        # Extract labels
+        # 提取标签
         labels_data = issue_data.get("labels", {}) or {}
         label_nodes = labels_data.get("nodes", []) or []
         labels = [label.get("name", "").lower() for label in label_nodes if label]
 
-        # Extract blockers from inverseRelations
+        # 从 inverseRelations 提取阻塞项
         blockers = []
         relations_data = issue_data.get("inverseRelations", {}) or {}
         relation_nodes = relations_data.get("nodes", []) or []
@@ -251,15 +251,15 @@ class LinearTracker(BaseTracker):
                         )
                     )
 
-        # Parse timestamps
+        # 解析时间戳
         created_at = self._parse_datetime(issue_data.get("createdAt"))
         updated_at = self._parse_datetime(issue_data.get("updatedAt"))
 
-        # Extract assignee
+        # 提取负责人
         assignee_data = issue_data.get("assignee", {})
         assignee_id = assignee_data.get("id") if assignee_data else None
 
-        # Determine if assigned to worker
+        # 判断是否分配给当前工作器
         assigned_to_worker = self._check_assigned_to_worker(assignee_id)
 
         return Issue(
@@ -280,7 +280,7 @@ class LinearTracker(BaseTracker):
         )
 
     def _parse_datetime(self, value: str | None) -> datetime | None:
-        """Parse ISO datetime string."""
+        """解析 ISO 格式的时间字符串。"""
         if not value:
             return None
         try:
@@ -289,10 +289,10 @@ class LinearTracker(BaseTracker):
             return None
 
     def _check_assigned_to_worker(self, assignee_id: str | None) -> bool:
-        """Check if issue is assigned to this worker.
+        """检查问题是否分配给当前工作器。
 
-        If no assignee filter is configured, all issues are eligible.
-        If "me" is configured, compares against viewer ID.
+        如果未配置负责人筛选，则所有问题都符合条件。
+        如果配置了 "me"，则与当前查看者 ID 比较。
         """
         if not self.assignee:
             return True
@@ -300,10 +300,10 @@ class LinearTracker(BaseTracker):
         if self.assignee == "me":
             return assignee_id == self._viewer_id
 
-        return True  # Other assignee filters not yet implemented
+        return True  # 其他负责人筛选尚未实现
 
     async def _get_viewer_id(self) -> str | None:
-        """Get current viewer ID for "me" assignee filter."""
+        """获取当前查看者 ID，用于 "me" 负责人筛选。"""
         if self._viewer_id is not None:
             return self._viewer_id
 
@@ -316,10 +316,10 @@ class LinearTracker(BaseTracker):
             return None
 
     async def fetch_candidate_issues(self) -> list[Issue]:
-        """Fetch issues in active states.
+        """获取处于活跃状态的问题。
 
-        Returns:
-            List of Issue objects
+        返回:
+            Issue 对象列表
         """
         if self.assignee == "me":
             await self._get_viewer_id()
@@ -354,17 +354,17 @@ class LinearTracker(BaseTracker):
             if not after_cursor:
                 break
 
-        logger.debug(f"Fetched {len(all_issues)} candidate issues")
+        logger.debug(f"获取到 {len(all_issues)} 个候选问题")
         return all_issues
 
     async def fetch_issues_by_states(self, states: list[str]) -> list[Issue]:
-        """Fetch issues in specific states.
+        """获取特定状态的问题。
 
-        Args:
-            states: List of state names
+        参数:
+            states: 状态名称列表
 
-        Returns:
-            List of Issue objects
+        返回:
+            Issue 对象列表
         """
         if not states:
             return []
@@ -400,18 +400,18 @@ class LinearTracker(BaseTracker):
         return all_issues
 
     async def fetch_issue_states_by_ids(self, issue_ids: list[str]) -> list[Issue]:
-        """Fetch current states for specific issue IDs.
+        """获取特定问题 ID 的当前状态。
 
-        Args:
-            issue_ids: List of issue IDs
+        参数:
+            issue_ids: 问题 ID 列表
 
-        Returns:
-            List of Issue objects
+        返回:
+            Issue 对象列表
         """
         if not issue_ids:
             return []
 
-        # Split into batches
+        # 分批处理
         all_issues: list[Issue] = []
 
         for i in range(0, len(issue_ids), self.PAGE_SIZE):
@@ -434,11 +434,11 @@ class LinearTracker(BaseTracker):
         return all_issues
 
     async def create_comment(self, issue_id: str, body: str) -> None:
-        """Create a comment on an issue.
+        """在问题上创建评论。
 
-        Args:
-            issue_id: Issue ID
-            body: Comment body
+        参数:
+            issue_id: 问题 ID
+            body: 评论正文
         """
         variables = {
             "issueId": issue_id,
@@ -449,17 +449,17 @@ class LinearTracker(BaseTracker):
         result = data.get("commentCreate", {})
 
         if not result.get("success"):
-            raise TrackerError("Failed to create comment")
+            raise TrackerError("创建评论失败")
 
     async def update_issue_state(self, issue_id: str, state_name: str) -> None:
-        """Update issue state.
+        """更新问题状态。
 
-        Note: This requires looking up the state ID from the state name,
-        which is not implemented in this basic version.
+        注意：这需要根据状态名称查找状态 ID，
+        在此基础版本中尚未实现。
 
-        Args:
-            issue_id: Issue ID
-            state_name: New state name
+        参数:
+            issue_id: 问题 ID
+            state_name: 新状态名称
         """
-        # TODO: Implement state ID lookup
-        raise NotImplementedError("State update requires state ID lookup")
+        # TODO: 实现状态 ID 查找
+        raise NotImplementedError("状态更新需要状态 ID 查找")

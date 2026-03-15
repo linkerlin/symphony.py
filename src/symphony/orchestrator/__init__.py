@@ -1,6 +1,6 @@
-"""Orchestrator module for Symphony.
+"""Symphony 的编排器模块。
 
-Provides the core scheduling and dispatch logic.
+提供核心的调度和分发逻辑。
 """
 
 from symphony.orchestrator.orchestrator import Orchestrator
